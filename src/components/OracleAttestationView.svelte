@@ -75,7 +75,14 @@
         });
       }
 
-      const receipt = marketInstance.settleMarket(targetMarketId, v.verdict);
+      const options = {
+        decisiveEvidenceContributorDid: 'did:plc:whistleblower_dr',
+        participatingJurorDids: ['did:plc:juror_alpha', 'did:plc:juror_beta'],
+        evidenceBountyPct: 0.15,
+        jurorFeePct: 0.05
+      };
+
+      const receipt = marketInstance.settleMarket(targetMarketId, v.verdict, options);
       settlementResult = receipt;
     } catch (err) {
       errorMessage = err.message;
@@ -199,17 +206,42 @@
               <strong>${settlementResult.totalPool}</strong>
             </div>
             <div class="r-item">
+              <span>Losing Pool Slashed:</span>
+              <strong style="color: #ef4444">${settlementResult.losingPool || 0} USDC</strong>
+            </div>
+            {#if settlementResult.evidenceBounty > 0}
+              <div class="r-item" style="color: #00f5d4">
+                <span>Whistleblower Evidence Bounty:</span>
+                <strong>+${settlementResult.evidenceBounty} (15%)</strong>
+              </div>
+            {/if}
+            {#if settlementResult.jurorFeePool > 0}
+              <div class="r-item" style="color: #a855f7">
+                <span>Civic Juror Quorum Pool:</span>
+                <strong>+${settlementResult.jurorFeePool} (5%)</strong>
+              </div>
+            {/if}
+            <div class="r-item">
               <span>Protocol Fee:</span>
               <strong>${settlementResult.protocolCut} (5%)</strong>
             </div>
           </div>
 
-          <h5 class="payout-heading">Liquidity Payouts</h5>
+          <h5 class="payout-heading">Liquidity & Bounty Payouts</h5>
           <div class="payout-list">
             {#each settlementResult.payouts as p}
               <div class="payout-row">
-                <span class="staker-id">{p.stakerDid}</span>
-                <span class="payout-amt">+${p.payout} USDC (${p.profit} Profit)</span>
+                <div class="payout-left" style="display: flex; flex-direction: column; gap: 2px;">
+                  <span class="staker-id">{p.recipientDid || p.stakerDid}</span>
+                  {#if p.type === 'EVIDENCE_BOUNTY'}
+                    <span style="font-size: 0.68rem; color: #00f5d4; font-weight: 700;">🎯 Whistleblower / Hard Evidence Bounty</span>
+                  {:else if p.type === 'JUROR_DELIBERATION_FEE'}
+                    <span style="font-size: 0.68rem; color: #c084fc; font-weight: 700;">⚖️ Civic Juror Deliberation Fee</span>
+                  {:else}
+                    <span style="font-size: 0.68rem; color: #10b981; font-weight: 700;">🏆 Winning Staker Yield</span>
+                  {/if}
+                </div>
+                <span class="payout-amt">+${p.payout} USDC</span>
               </div>
             {/each}
           </div>

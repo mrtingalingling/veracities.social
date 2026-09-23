@@ -85,12 +85,18 @@ export class ValidationMarket {
     return odds;
   }
 
-  settleMarket(marketId, finalVerdict, protocolFeePct = 0.05) {
+  settleMarket(marketId, finalVerdict, options = {}) {
     if (!this.markets.has(marketId)) throw new Error(`Market not found: ${marketId}`);
     if (!OUTCOMES[finalVerdict]) throw new Error(`Invalid final verdict: ${finalVerdict}`);
 
     const market = this.markets.get(marketId);
     if (market.status !== 'OPEN') throw new Error(`Market already ${market.status}`);
+
+    const protocolFeePct = typeof options === 'number' ? options : (options.protocolFeePct ?? 0.05);
+    const evidenceBountyPct = typeof options === 'object' ? (options.evidenceBountyPct ?? 0.15) : 0;
+    const jurorFeePct = typeof options === 'object' ? (options.jurorFeePct ?? 0.05) : 0;
+    const decisiveEvidenceContributorDid = typeof options === 'object' ? options.decisiveEvidenceContributorDid : null;
+    const participatingJurorDids = typeof options === 'object' && Array.isArray(options.participatingJurorDids) ? options.participatingJurorDids : [];
 
     market.status = 'SETTLED';
     market.verdict = finalVerdict;
@@ -98,11 +104,25 @@ export class ValidationMarket {
 
     const winningPool = market.outcomePools[finalVerdict];
     const totalPool = market.totalPool;
+    const losingPool = Math.max(0, totalPool - winningPool);
     const allStakes = this.stakes.get(marketId) || [];
     const winningStakes = allStakes.filter(s => s.outcome === finalVerdict);
 
-    const protocolCut = totalPool * protocolFeePct;
-    const distributablePool = totalPool - protocolCut;
+    const protocolCut = Math.round(totalPool * protocolFeePct * 100) / 100;
+
+    // Slashing losing pool to reward empirical evidence contributor (whistleblower) and civic jurors
+    let evidenceBounty = 0;
+    if (decisiveEvidenceContributorDid && losingPool > 0 && evidenceBountyPct > 0) {
+      evidenceBounty = Math.round(losingPool * evidenceBountyPct * 100) / 100;
+    }
+
+    let jurorFeePool = 0;
+    if (participatingJurorDids.length > 0 && losingPool > 0 && jurorFeePct > 0) {
+      jurorFeePool = Math.round(losingPool * jurorFeePct * 100) / 100;
+    }
+
+    const netDeductions = protocolCut + evidenceBounty + jurorFeePool;
+    const distributablePool = Math.max(0, Math.round((totalPool - netDeductions) * 100) / 100);
 
     const payouts = [];
     if (winningPool > 0) {
@@ -110,10 +130,37 @@ export class ValidationMarket {
         const share = stake.amount / winningPool;
         const payout = Math.round(share * distributablePool * 100) / 100;
         payouts.push({
+          recipientDid: stake.stakerDid,
           stakerDid: stake.stakerDid,
+          type: 'WINNING_STAKE',
           originalStake: stake.amount,
           payout,
           profit: Math.round((payout - stake.amount) * 100) / 100
+        });
+      }
+    }
+
+    // Evidence Bounty Line Item
+    if (evidenceBounty > 0 && decisiveEvidenceContributorDid) {
+      payouts.push({
+        recipientDid: decisiveEvidenceContributorDid,
+        type: 'EVIDENCE_BOUNTY',
+        bountyRole: 'Whistleblower / Primary Evidence Contributor',
+        payout: evidenceBounty,
+        profit: evidenceBounty
+      });
+    }
+
+    // Juror Deliberation Fee Line Items
+    if (jurorFeePool > 0 && participatingJurorDids.length > 0) {
+      const perJurorFee = Math.round((jurorFeePool / participatingJurorDids.length) * 100) / 100;
+      for (const jurorDid of participatingJurorDids) {
+        payouts.push({
+          recipientDid: jurorDid,
+          type: 'JUROR_DELIBERATION_FEE',
+          bountyRole: 'Summoned Civic Juror',
+          payout: perJurorFee,
+          profit: perJurorFee
         });
       }
     }
@@ -123,7 +170,10 @@ export class ValidationMarket {
       status: 'SETTLED',
       verdict: finalVerdict,
       totalPool,
+      losingPool,
       protocolCut,
+      evidenceBounty,
+      jurorFeePool,
       distributablePool,
       payouts
     };

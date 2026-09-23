@@ -24,6 +24,8 @@ export class VerdictAttestationService {
     confidence = 1.0,
     jurySize = 1,
     judgeDid = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
+    decisiveEvidenceContributorDid = null,
+    participatingJurorDids = [],
     secretKey = 'veracities_oracle_secret'
   }) {
     if (!caseId || !claimText || !verdict) {
@@ -44,6 +46,8 @@ export class VerdictAttestationService {
       confidence: Math.round(confidence * 1000) / 1000,
       jurySize,
       judgeDid,
+      decisiveEvidenceContributorDid,
+      participatingJurorDids,
       timestamp,
       nonce
     };
@@ -134,7 +138,14 @@ export class VerdictAttestationService {
       }
     }
 
-    const settlementReceipt = validationMarket.settleMarket(targetMarketId, verification.verdict);
+    const settlementOptions = {
+      decisiveEvidenceContributorDid: attestation.message?.decisiveEvidenceContributorDid || null,
+      participatingJurorDids: attestation.message?.participatingJurorDids || [],
+      evidenceBountyPct: 0.15,
+      jurorFeePct: 0.05
+    };
+
+    const settlementReceipt = validationMarket.settleMarket(targetMarketId, verification.verdict, settlementOptions);
     return {
       success: true,
       attestationId: verification.attestationId,
