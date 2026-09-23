@@ -4,18 +4,42 @@
  * Guards Courtroom juries against financial bias by detecting active market stakes.
  */
 
+import { siweLinkService } from './siweService.js';
+
 export class IdentityLinkService {
   constructor() {
     this.atprotoToWeb3 = new Map();
     this.web3ToAtproto = new Map();
+    this.attestationRecords = new Map();
   }
 
   /**
    * Cryptographically or administratively links an ATProto DID to an EVM Web3 address.
+   * If a SIWE message and signature are provided, cryptographic proof of address control is verified.
    */
-  linkIdentities(atprotoDid, web3Address, signature = null) {
+  linkIdentities(atprotoDid, web3Address, { siweMessage = null, signature = null } = {}) {
     if (!atprotoDid || !web3Address) {
       throw new Error('Both atprotoDid and web3Address are required');
+    }
+
+    let atprotoRecord = null;
+    let isCryptographicallyVerified = false;
+
+    if (siweMessage && signature) {
+      const verifyResult = siweLinkService.verifySignature({
+        message: siweMessage,
+        signature,
+        expectedAddress: web3Address,
+        expectedDid: atprotoDid
+      });
+
+      if (!verifyResult.success) {
+        throw new Error(`SIWE Verification failed: ${verifyResult.reason}`);
+      }
+
+      atprotoRecord = verifyResult.atprotoRecord;
+      isCryptographicallyVerified = true;
+      this.attestationRecords.set(atprotoDid, atprotoRecord);
     }
 
     const normalizedWeb3 = web3Address.toLowerCase();
@@ -26,8 +50,14 @@ export class IdentityLinkService {
       success: true,
       atprotoDid,
       web3Address: normalizedWeb3,
+      isCryptographicallyVerified,
+      atprotoRecord,
       linkedAt: Date.now()
     };
+  }
+
+  getAttestationRecord(atprotoDid) {
+    return this.attestationRecords.get(atprotoDid) || null;
   }
 
   resolveWeb3(atprotoDid) {

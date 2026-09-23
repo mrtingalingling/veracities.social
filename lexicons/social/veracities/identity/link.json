@@ -1,0 +1,43 @@
+{
+  "lexicon": 1,
+  "id": "social.veracities.identity.link",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A cryptographic attestation binding an ATProto DID to an EVM Web3 address using EIP-4361 Sign-In with Ethereum.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["web3Address", "chainId", "statement", "nonce", "issuedAt", "signature"],
+        "properties": {
+          "web3Address": {
+            "type": "string",
+            "description": "EIP-55 checksummed EVM address",
+            "pattern": "^0x[a-fA-F0-9]{40}$"
+          },
+          "chainId": {
+            "type": "integer",
+            "description": "EIP-155 chain ID (e.g. 1 for Ethereum Mainnet, 8453 for Base)"
+          },
+          "statement": {
+            "type": "string",
+            "description": "EIP-4361 statement binding the ATProto DID to this wallet"
+          },
+          "nonce": {
+            "type": "string",
+            "description": "Random single-use nonce for replay protection"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "ISO 8601 timestamp of signature generation"
+          },
+          "signature": {
+            "type": "string",
+            "description": "0x-prefixed hex-encoded secp256k1 ECDSA signature"
+          }
+        }
+      }
+    }
+  }
+}

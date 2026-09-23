@@ -5,6 +5,7 @@ export * from './authProvider.js';
 export * from './atprotoProvider.js';
 export * from './web3NftProvider.js';
 export * from './identityLinkService.js';
+export * from './siweService.js';
 
 export function createAuthProvider(providerType = 'atproto', options = {}) {
   switch (providerType.toLowerCase()) {
