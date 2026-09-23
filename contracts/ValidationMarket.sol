@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 /**
  * @title ValidationMarket
- * @notice Decentralized Fact-Checking Validation Market with Slashed Pool Evidence Bounties & EIP-712 Settlement
+ * @notice Decentralized Fact-Checking Validation Market with Slashed Pool Evidence Bounties, EIP-712 Settlement & Capital-Lock Protection
  */
 contract ValidationMarket {
     enum Outcome { VERIFIED, MISINFORMED, DISPUTED, NEED_CONTEXT }
@@ -24,11 +24,16 @@ contract ValidationMarket {
         uint256 jurorQuorumPool;
         uint256 protocolFee;
         uint256 distributablePool;
+        bool winningPoolZero; // Flagged when no stakers chose the winning outcome
     }
 
+    address public owner;
     address public protocolTreasury;
     address public oracleSigner;
     bytes32 public immutable DOMAIN_SEPARATOR;
+
+    uint256 public accumulatedProtocolFees;
+    bool private _locked;
 
     bytes32 public constant VERDICT_TYPEHASH = keccak256(
         "VerdictAttestation(bytes32 marketId,uint8 verdict,address decisiveWhistleblower,address[] jurors,uint256 timestamp,uint256 nonce)"
@@ -41,10 +46,29 @@ contract ValidationMarket {
 
     event MarketCreated(bytes32 indexed marketId, string claimText, address indexed creator, uint256 initialStake, uint8 outcome);
     event StakePlaced(bytes32 indexed marketId, address indexed staker, uint8 outcome, uint256 amount);
-    event MarketSettled(bytes32 indexed marketId, Outcome finalVerdict, uint256 evidenceBounty, uint256 jurorPool);
+    event MarketSettled(bytes32 indexed marketId, Outcome finalVerdict, uint256 evidenceBounty, uint256 jurorPool, bool winningPoolZero);
     event PayoutClaimed(bytes32 indexed marketId, address indexed claimant, uint256 amount);
+    event OracleSignerUpdated(address indexed oldSigner, address indexed newSigner);
+    event ProtocolTreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+    event ProtocolFeesWithdrawn(address indexed treasury, uint256 amount);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Caller is not the owner");
+        _;
+    }
+
+    modifier nonReentrant() {
+        require(!_locked, "ReentrancyGuard: reentrant call");
+        _locked = true;
+        _;
+        _locked = false;
+    }
 
     constructor(address _protocolTreasury, address _oracleSigner) {
+        require(_protocolTreasury != address(0), "Invalid treasury");
+        require(_oracleSigner != address(0), "Invalid oracle signer");
+        owner = msg.sender;
         protocolTreasury = _protocolTreasury;
         oracleSigner = _oracleSigner;
 
@@ -59,7 +83,36 @@ contract ValidationMarket {
         );
     }
 
-    function createMarket(string memory claimText, uint8 initialOutcome) external payable returns (bytes32) {
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner is zero address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    function updateOracleSigner(address newSigner) external onlyOwner {
+        require(newSigner != address(0), "New signer is zero address");
+        emit OracleSignerUpdated(oracleSigner, newSigner);
+        oracleSigner = newSigner;
+    }
+
+    function updateProtocolTreasury(address newTreasury) external onlyOwner {
+        require(newTreasury != address(0), "New treasury is zero address");
+        emit ProtocolTreasuryUpdated(protocolTreasury, newTreasury);
+        protocolTreasury = newTreasury;
+    }
+
+    function withdrawProtocolFees() external nonReentrant {
+        uint256 amount = accumulatedProtocolFees;
+        require(amount > 0, "No accumulated fees");
+        accumulatedProtocolFees = 0;
+
+        (bool success, ) = protocolTreasury.call{value: amount}("");
+        require(success, "Protocol fee transfer failed");
+
+        emit ProtocolFeesWithdrawn(protocolTreasury, amount);
+    }
+
+    function createMarket(string memory claimText, uint8 initialOutcome) external payable nonReentrant returns (bytes32) {
         require(msg.value > 0, "Initial stake required");
         require(initialOutcome <= uint8(Outcome.NEED_CONTEXT), "Invalid outcome");
 
@@ -81,7 +134,7 @@ contract ValidationMarket {
         return marketId;
     }
 
-    function placeStake(bytes32 marketId, uint8 outcome) external payable {
+    function placeStake(bytes32 marketId, uint8 outcome) external payable nonReentrant {
         Market storage m = markets[marketId];
         require(m.status == MarketStatus.ACTIVE, "Market not active");
         require(msg.value > 0, "Stake must be > 0");
@@ -105,7 +158,7 @@ contract ValidationMarket {
         uint256 timestamp,
         uint256 nonce,
         bytes calldata signature
-    ) external {
+    ) external nonReentrant {
         Market storage m = markets[marketId];
         require(m.status == MarketStatus.ACTIVE, "Market not active");
         require(verdict <= uint8(Outcome.NEED_CONTEXT), "Invalid verdict");
@@ -152,19 +205,22 @@ contract ValidationMarket {
         m.jurorQuorumPool = jurorPool;
         m.distributablePool = distributable;
 
-        // Send protocol fee
-        if (protoFee > 0) {
-            (bool success, ) = protocolTreasury.call{value: protoFee}("");
-            require(success, "Protocol fee transfer failed");
+        // Capital lock defense: if no one staked on the winning outcome, mark winningPoolZero
+        if (winningPool == 0) {
+            m.winningPoolZero = true;
         }
 
-        emit MarketSettled(marketId, m.finalVerdict, evidenceBounty, jurorPool);
+        // Accumulate protocol fee safely via pull pattern
+        accumulatedProtocolFees += protoFee;
+
+        emit MarketSettled(marketId, m.finalVerdict, evidenceBounty, jurorPool, m.winningPoolZero);
     }
 
     /**
      * @notice Claim winning wager payout, whistleblower bounty, or juror deliberation fee.
+     * If winningPoolZero is true, distributable pool is refunded pro-rata to all stakers across all outcomes.
      */
-    function claimPayout(bytes32 marketId) external {
+    function claimPayout(bytes32 marketId) external nonReentrant {
         Market storage m = markets[marketId];
         require(m.status == MarketStatus.SETTLED, "Market not settled");
         require(!hasClaimed[marketId][msg.sender], "Already claimed");
@@ -186,14 +242,22 @@ contract ValidationMarket {
             }
         }
 
-        // 3. Winning Staker Yield (Pro-rata share of distributable pool)
-        uint8 winningOutcome = uint8(m.finalVerdict);
-        uint256 userStake = stakes[marketId][msg.sender][winningOutcome];
-        uint256 winningPool = m.outcomePools[winningOutcome];
+        // 3. Staker Distribution (Normal Winning Stakers vs. Zero-Winning-Pool Pro-Rata Refund)
+        if (m.winningPoolZero) {
+            // No one picked the winning verdict: refund remaining distributable pool pro-rata across all stakers
+            uint256 userTotalStake = getUserTotalStake(marketId, msg.sender);
+            if (userTotalStake > 0 && m.totalPool > 0) {
+                payout += (userTotalStake * m.distributablePool) / m.totalPool;
+            }
+        } else {
+            uint8 winningOutcome = uint8(m.finalVerdict);
+            uint256 userStake = stakes[marketId][msg.sender][winningOutcome];
+            uint256 winningPool = m.outcomePools[winningOutcome];
 
-        if (userStake > 0 && winningPool > 0) {
-            uint256 stakerYield = (userStake * m.distributablePool) / winningPool;
-            payout += stakerYield;
+            if (userStake > 0 && winningPool > 0) {
+                uint256 stakerYield = (userStake * m.distributablePool) / winningPool;
+                payout += stakerYield;
+            }
         }
 
         require(payout > 0, "No payout available");
@@ -203,6 +267,13 @@ contract ValidationMarket {
         require(success, "Payout transfer failed");
 
         emit PayoutClaimed(marketId, msg.sender, payout);
+    }
+
+    function getUserTotalStake(bytes32 marketId, address user) public view returns (uint256) {
+        return stakes[marketId][user][0] +
+               stakes[marketId][user][1] +
+               stakes[marketId][user][2] +
+               stakes[marketId][user][3];
     }
 
     function recoverSigner(bytes32 hash, bytes memory sig) internal pure returns (address) {

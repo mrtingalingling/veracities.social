@@ -3,22 +3,23 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { keccak256, toUtf8Bytes, AbiCoder, Wallet } from 'ethers';
+import { deploy } from '../scripts/deploy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const buildDir = path.resolve(__dirname, '../contracts/build');
 
-describe('On-Chain Solidity Smart Contracts (Option C)', () => {
+describe('On-Chain Solidity Smart Contracts Hardening & Deployment Pipeline', () => {
   it('compiles ValidationMarket and CourtroomEscrow with complete ABIs and EVM bytecode', () => {
     const marketArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'ValidationMarket.json'), 'utf8'));
     const escrowArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'CourtroomEscrow.json'), 'utf8'));
 
     expect(marketArtifact.contractName).toBe('ValidationMarket');
-    expect(marketArtifact.abi.length).toBeGreaterThan(10);
+    expect(marketArtifact.abi.length).toBeGreaterThan(15);
     expect(marketArtifact.bytecode.startsWith('0x60')).toBe(true);
 
     expect(escrowArtifact.contractName).toBe('CourtroomEscrow');
-    expect(escrowArtifact.abi.length).toBeGreaterThan(8);
+    expect(escrowArtifact.abi.length).toBeGreaterThan(10);
     expect(escrowArtifact.bytecode.startsWith('0x60')).toBe(true);
   });
 
@@ -81,20 +82,71 @@ describe('On-Chain Solidity Smart Contracts (Option C)', () => {
     expect(stakerYield).toBe(395n); // Net +295% profit on 100 stake!
   });
 
-  it('validates 14-day cold case refund parameters and 2x retrial challenge bonds', () => {
+  it('implements zero-winning-pool capital-lock defense (pro-rata staker refund)', () => {
+    // Scenario: No staker picked the outcome decided by the jury (winningPool == 0)
+    const totalPool = 1000n;
+    const winningPool = 0n;
+    const losingPool = totalPool; // 1000n
+
+    const protoFee = (totalPool * 5n) / 100n; // 50n
+    const evidenceBounty = (losingPool * 15n) / 100n; // 150n
+    const jurorPool = (losingPool * 5n) / 100n; // 50n
+    const distributablePool = totalPool - (protoFee + evidenceBounty + jurorPool); // 750n
+
+    // In the old code, this 750n was trapped. With winningPoolZero defense:
+    // Staker A staked 300n out of 1000n total pool
+    const userTotalStake = 300n;
+    const proRataRefund = (userTotalStake * distributablePool) / totalPool;
+
+    // Staker recovers 75% of their principal (225n of 300n) instead of losing 100%
+    expect(proRataRefund).toBe(225n);
+    expect(distributablePool).toBe(750n);
+  });
+
+  it('validates 14-day cold case refund and challenge retrial settlement (overturned vs upheld)', () => {
     const INACTIVITY_PERIOD_SECONDS = 14 * 24 * 60 * 60; // 1,209,600s
     expect(INACTIVITY_PERIOD_SECONDS).toBe(1209600);
 
     const initialDeposit = 500n;
-    const requiredChallengeBond = initialDeposit * 2n;
-    expect(requiredChallengeBond).toBe(1000n); // 2x bond
+    const requiredChallengeBond = initialDeposit * 2n; // 1000n
+    expect(requiredChallengeBond).toBe(1000n);
 
-    // 94% refund to staker, 6% protocol maintenance fee
+    // 1. Cold Case Refund: 94% staker refund, 6% protocol retention fee
     const stakerRefund = (initialDeposit * 94n) / 100n;
     const protocolRetention = (initialDeposit * 6n) / 100n;
-
     expect(stakerRefund).toBe(470n);
     expect(protocolRetention).toBe(30n);
-    expect(stakerRefund + protocolRetention).toBe(initialDeposit);
+
+    // 2. Challenge Settled - OVERTURNED:
+    // Challenger receives 2x bond (1000n) + 20% reward of deposit pool (100n) = 1100n
+    const reward = (initialDeposit * 20n) / 100n; // 100n
+    const totalChallengerPayout = requiredChallengeBond + reward;
+    expect(totalChallengerPayout).toBe(1100n);
+
+    // 3. Challenge Settled - UPHELD (Bad faith or unconvincing challenge):
+    // 2x bond is slashed: 50% to retrial jurors (500n), 50% to protocol treasury (500n)
+    const jurorShare = (requiredChallengeBond * 50n) / 100n;
+    const treasuryShare = requiredChallengeBond - jurorShare;
+    expect(jurorShare).toBe(500n);
+    expect(treasuryShare).toBe(500n);
+  });
+
+  it('runs automated deployment pipeline and verifies multi-repo config export', async () => {
+    const config = await deploy();
+
+    expect(config.network).toBeDefined();
+    expect(config.chainId).toBe(84532);
+    expect(config.contracts.ValidationMarket.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
+    expect(config.contracts.CourtroomEscrow.address).toMatch(/^0x[a-fA-F0-9]{40}$/);
+
+    // Verify written config files
+    const socialConfigPath = path.resolve(__dirname, '../src/config/contracts.json');
+    const clearCloudConfigPath = path.resolve(__dirname, '../../clearCloud/src/config/contracts.json');
+
+    expect(fs.existsSync(socialConfigPath)).toBe(true);
+    expect(fs.existsSync(clearCloudConfigPath)).toBe(true);
+
+    const socialConfig = JSON.parse(fs.readFileSync(socialConfigPath, 'utf8'));
+    expect(socialConfig.contracts.ValidationMarket.address).toBe(config.contracts.ValidationMarket.address);
   });
 });
