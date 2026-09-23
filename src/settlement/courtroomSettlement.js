@@ -14,6 +14,67 @@ export const SETTLEMENT_STATUS = {
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
 export class CourtroomSettlementProtocol {
+  constructor() {
+    this.cases = new Map();
+  }
+
+  docketCase({ caseId, title, claimText, creatorDid, deposit }) {
+    const c = {
+      caseId,
+      title,
+      claimText,
+      creatorDid,
+      deposit,
+      status: SETTLEMENT_STATUS.ACTIVE,
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+      challengeBonds: []
+    };
+    this.cases.set(caseId, c);
+    return c;
+  }
+
+  checkStaleStatus(caseId) {
+    const c = this.cases.get(caseId);
+    if (!c) throw new Error(`Case ${caseId} not found`);
+    const refundReport = this.processColdCaseRefund({
+      totalPool: c.deposit,
+      deposits: [{ depositorDid: c.creatorDid, amount: c.deposit }],
+      lastActivityAt: c.lastActivity
+    });
+    if (refundReport.isEligible) {
+      c.status = SETTLEMENT_STATUS.COLD;
+    }
+    return {
+      status: c.status,
+      refundAmount: refundReport.totalRefundedAmount || 0,
+      platformFee: refundReport.platformFeeAmount || 0
+    };
+  }
+
+  fileChallengeBond(caseId, challengerDid, bondAmount, newEvidence) {
+    const c = this.cases.get(caseId);
+    if (!c) throw new Error(`Case ${caseId} not found`);
+    if (bondAmount < c.deposit * 2) {
+      throw new Error(`Challenge bond must be at least 2x the original deposit ($${c.deposit * 2})`);
+    }
+    c.status = SETTLEMENT_STATUS.APPEALED;
+    c.lastActivity = Date.now();
+    const bond = {
+      challengerDid,
+      bondAmount,
+      newEvidence,
+      timestamp: Date.now()
+    };
+    c.challengeBonds.push(bond);
+    return {
+      caseId,
+      bondAmount,
+      bondEscrowRatio: Math.round((bondAmount / c.deposit) * 10) / 10,
+      status: c.status
+    };
+  }
+
   /**
    * Calculates stale cold case refund distribution after 14 days of inactivity.
    * Protocol rule: 94% refunded to stakers/depositors, 6% protocol maintenance fee retained.
@@ -145,3 +206,4 @@ export class CourtroomSettlementProtocol {
 }
 
 export const courtroomSettlement = new CourtroomSettlementProtocol();
+export const CourtroomSettlementService = CourtroomSettlementProtocol;

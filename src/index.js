@@ -8,3 +8,4 @@ export * from './identity/index.js';
 export * from './market/index.js';
 export * from './governance/index.js';
 export * from './settlement/index.js';
+export * from './attestation/verdictAttestation.js';
