@@ -1,0 +1,65 @@
+{
+  "lexicon": 1,
+  "id": "social.veracities.courtroom.docket",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A federated Courtroom Case Docket record published to an ATProto PDS repository.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["caseId", "title", "claimText", "category", "creatorDid", "createdAt"],
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "description": "Unique courtroom docket identifier (e.g. case_101)"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 280,
+            "description": "Short title or headline for the empirical case"
+          },
+          "claimText": {
+            "type": "string",
+            "maxLength": 3000,
+            "description": "Full empirical statement submitted for civic adjudication"
+          },
+          "category": {
+            "type": "string",
+            "description": "Popperian empirical category (EMPIRICAL, STATISTICAL, SCIENTIFIC, DOCUMENTARY)"
+          },
+          "creatorDid": {
+            "type": "string",
+            "description": "Decentralized identifier of the claimant (did:plc or did:pkh)"
+          },
+          "dagNodes": {
+            "type": "array",
+            "description": "Directed Acyclic Graph decomposition of sub-claims",
+            "items": {
+              "type": "object",
+              "required": ["nodeId", "text"],
+              "properties": {
+                "nodeId": { "type": "string" },
+                "text": { "type": "string" },
+                "dependencies": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          },
+          "evidenceCids": {
+            "type": "array",
+            "description": "Content-addressed decentralized storage URIs for primary receipts (ipfs://, ar://)",
+            "items": { "type": "string" }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "ISO 8601 timestamp of case creation"
+          }
+        }
+      }
+    }
+  }
+}

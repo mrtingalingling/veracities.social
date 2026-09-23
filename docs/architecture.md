@@ -46,12 +46,29 @@ graph TD
 ### 2.2 Validation Market Subsystem (`src/market/`)
 - **Prediction Pools (`validationMarket.js`)**: Staking pools across Vera's 4 epistemic outcomes (`VERIFIED`, `DISPUTED`, `MISINFORMED`, `NEED_CONTEXT`).
 - **Dynamic Odds**: Real-time payout odds based on proportional liquidity.
-- **Automated Oracle Settlement**: Payout distribution deducting protocol fees.
+- **Poker Evidence Wagering**: 4 distinct rounds (`Pre-Flop`, `Evidence Drop`, `Cross-Exam`, `Showdown`) with loss-mitigating `Fold` actions.
+- **Truth Parleys & Derivatives**: Multi-claim compounded ticket multiplier and Epistemic Put/Call derivative hedge options.
+- **Slashing Waterfall**: 15% Whistleblower Evidence Bounty, 5% Juror Deliberation Fee, 5% Protocol Fee.
 
 ### 2.3 Epistemic DAO Registry Subsystem ("EnDAOsment") (`src/governance/`)
-- **DAO Registry (`daoRegistry.js`)**: Proposal lifecycles, weighted voting, and quorum/consensus threshold calculation.
+- **DAO Registry (`daoRegistry.js`)**: Multi-dimensional Epistemic Quotient ($EQ$) formula, quadratic tier multipliers (1, 5, 15, 30), and quorum/consensus evaluation.
+- **Semaphore ZK Identity Bridge (`zkSemaphoreBridge.js`)**: Anonymous quadratic voting using Semaphore zero-knowledge proofs and single-use nullifiers.
 
-### 2.4 Courtroom Settlement Protocol (`src/settlement/`)
+### 2.4 Courtroom Settlement & Oracle Relayer (`src/settlement/`, `src/oracle/`)
 - **Cold Case Escrow (`courtroomSettlement.js`)**: Automatic 14-day inactivity settlement (**94% refunded** to depositors, **6% platform maintenance fee** retained).
 - **Challenge Bond Escrow**: Anti-spam staking mechanism for retrials (overturned verdicts award bond + 50% bounty; reaffirmed verdicts forfeit bond).
-- **Jury Consensus Protocol**: Evaluates 66.7% decisive consensus thresholds.
+- **Threshold Oracle Relayer (`oracleRelayer.js`)**: Verifies $M$-of-$N$ EIP-712 citizen juror signatures and single-use nonces against sortition rosters before triggering on-chain market settlement.
+
+### 2.5 Production EVM Smart Contracts (`contracts/`)
+- **`ValidationMarket.sol`**: UUPS / ERC-1967 upgradeable prediction market managing pools, dynamic odds, dynamic EIP-712 domain separator, losing pool slashing waterfall, and settlement.
+- **`CourtroomEscrow.sol`**: UUPS / ERC-1967 upgradeable escrow governing 14-day cold case refunds (94%/6%) and challenge retrial bonds.
+- **`EpistemicGovernor.sol`**: UUPS / ERC-1967 upgradeable quadratic tier-weighted governance contract with Semaphore ZK double-voting prevention and modular DAO framework adapters (OpenZeppelin Governor, Gnosis Safe Zodiac module, Aragon OSx plugin).
+- **`proxy/`**: Canonical `ERC1967Proxy.sol`, `Initializable.sol`, and `UUPSUpgradeable.sol` providing atomic proxy initialization and upgrade authorization.
+- Compiled with Solc 0.8.20 optimizer (200 runs), artifacts exported to `src/config/contracts.json`.
+
+---
+
+## 3. Cross-Repository Architectural Invariants
+
+For cross-repository architecture specifications, multi-module connection flows, remaining production caveats, and maintenance guides, consult the authoritative canonical document:
+[**`vera/docs/ARCHITECTURE_CAVEATS_AND_ROADMAP.md`**](../../vera/docs/ARCHITECTURE_CAVEATS_AND_ROADMAP.md).

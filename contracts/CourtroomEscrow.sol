@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./proxy/Initializable.sol";
+import "./proxy/UUPSUpgradeable.sol";
+
 /**
  * @title CourtroomEscrow
- * @notice 14-Day Cold Case Refund Escrow & 2x Challenge Retrial Bond Vault with Challenge Settlement
+ * @notice Upgradeable 14-Day Cold Case Refund Escrow & 2x Challenge Retrial Bond Vault (UUPS / ERC-1967)
  */
-contract CourtroomEscrow {
+contract CourtroomEscrow is Initializable, UUPSUpgradeable {
     uint256 public constant INACTIVITY_PERIOD = 14 days;
     uint256 public constant REFUND_PERCENTAGE = 94; // 94% returned to stakers
     uint256 public constant PROTOCOL_REFUND_FEE = 6; // 6% protocol maintenance fee
@@ -51,11 +54,24 @@ contract CourtroomEscrow {
         _locked = false;
     }
 
-    constructor(address _protocolTreasury) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Initializes the upgradeable CourtroomEscrow logic
+     */
+    function initialize(address _protocolTreasury) external initializer {
         require(_protocolTreasury != address(0), "Invalid treasury");
         owner = msg.sender;
         protocolTreasury = _protocolTreasury;
     }
+
+    /**
+     * @notice Restricts contract upgrades to the owner
+     */
+    function _authorizeUpgrade(address /* newImplementation */) internal view override onlyOwner {}
 
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "New owner is zero address");
@@ -96,16 +112,12 @@ contract CourtroomEscrow {
         deposits[docketId][msg.sender] += msg.value;
     }
 
-    /**
-     * @notice Files a 2x challenge bond with fresh evidence CID to reopen an inactive docket.
-     */
     function fileChallengeBond(bytes32 docketId, string calldata evidenceCID) external payable nonReentrant {
         EscrowDocket storage d = dockets[docketId];
         require(d.createdAt > 0, "Docket does not exist");
         require(!d.isColdRefunded, "Docket is cold refunded");
         require(!d.isChallenged, "Docket already challenged");
 
-        // Requires 2x original creator deposit
         uint256 requiredBond = deposits[docketId][d.creator] * 2;
         require(msg.value >= requiredBond, "Insufficient 2x challenge bond");
 
@@ -113,17 +125,11 @@ contract CourtroomEscrow {
         d.activeChallenger = msg.sender;
         d.challengeBond = msg.value;
         d.newEvidenceCID = evidenceCID;
-        d.lastActivityTime = block.timestamp; // Reset 14-day inactivity timer
+        d.lastActivityTime = block.timestamp;
 
         emit ChallengeBondFiled(docketId, msg.sender, msg.value, evidenceCID);
     }
 
-    /**
-     * @notice Settles an active retrial challenge.
-     * @param docketId Docket identifier.
-     * @param overturned True if the new evidence successfully overturned the prior finding.
-     * @param jurors Participating jurors in the retrial quorum.
-     */
     function settleChallenge(
         bytes32 docketId,
         bool overturned,
@@ -142,7 +148,6 @@ contract CourtroomEscrow {
         d.lastActivityTime = block.timestamp;
 
         if (overturned) {
-            // Successful challenge: refund 2x bond + 20% reward from escrow pool
             uint256 reward = (d.totalDeposited * 20) / 100;
             if (reward > 0) {
                 d.totalDeposited = d.totalDeposited > reward ? d.totalDeposited - reward : 0;
@@ -154,7 +159,6 @@ contract CourtroomEscrow {
 
             emit ChallengeSettled(docketId, challenger, true, totalPayout);
         } else {
-            // Unsuccessful challenge: slash 2x bond (50% to retrial jurors, 50% to treasury)
             uint256 jurorShare = (bond * 50) / 100;
             uint256 treasuryShare = bond - jurorShare;
 
@@ -177,9 +181,6 @@ contract CourtroomEscrow {
         }
     }
 
-    /**
-     * @notice Triggers 94% cold case refund if docket remains inactive for 14 days.
-     */
     function triggerColdCaseRefund(bytes32 docketId) external nonReentrant {
         EscrowDocket storage d = dockets[docketId];
         require(d.createdAt > 0, "Docket does not exist");
@@ -198,9 +199,6 @@ contract CourtroomEscrow {
         emit ColdCaseRefundTriggered(docketId, total - protoFee, protoFee);
     }
 
-    /**
-     * @notice Claim 94% refund of user deposit.
-     */
     function claimRefund(bytes32 docketId) external nonReentrant {
         EscrowDocket storage d = dockets[docketId];
         require(d.isColdRefunded, "Docket not cold refunded");
@@ -217,4 +215,7 @@ contract CourtroomEscrow {
 
         emit RefundClaimed(docketId, msg.sender, refundAmount);
     }
+
+    // Storage gap for future upgrades
+    uint256[48] private __gap;
 }

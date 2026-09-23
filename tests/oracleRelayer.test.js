@@ -143,4 +143,78 @@ describe('Automated Oracle Relayer Daemon & EIP-712 Settlement', () => {
     expect(bridgeResult.payload.decisiveWhistleblower).toBe('0x1234567890123456789012345678901234567890');
     expect(bridgeResult.txHash).toMatch(/^0x[a-f0-9]{64}$/i);
   });
+
+  describe('M-of-N Citizen Juror Threshold Multi-Sig (EIP-712)', () => {
+    // Simulate sortition panel of 7 summoned jurors
+    const jurorWallets = Array.from({ length: 7 }, () => ethers.Wallet.createRandom());
+    const jurorAddresses = jurorWallets.map(w => w.address);
+    const jurorPrivateKeys = jurorWallets.map(w => w.privateKey);
+
+    it('prepares multi-sig payload and verifies 5-of-7 supermajority quorum threshold', () => {
+      const marketId = ethers.keccak256(ethers.toUtf8Bytes('claim_multisig_climate_target'));
+      const verdict = 0; // VERIFIED
+
+      // Provide 5 of 7 signatures (meeting the 66.7% supermajority quorum: (7*2+2)/3 = 5)
+      const selectedKeys = jurorPrivateKeys.slice(0, 5);
+
+      const payload = relayer.prepareMultiSigSettlementPayload({
+        marketId,
+        verdict,
+        jurors: jurorAddresses,
+        jurorPrivateKeys: selectedKeys,
+        nonce: 7701
+      });
+
+      expect(payload.marketId).toBe(marketId);
+      expect(payload.verdict).toBe(0);
+      expect(payload.jurors.length).toBe(7);
+      expect(payload.requiredQuorum).toBe(5);
+      expect(payload.signatures.length).toBe(5);
+      expect(payload.recoveredJurors.length).toBe(5);
+
+      // Verify each recovered signer matches the corresponding summoned juror
+      for (let i = 0; i < 5; i++) {
+        expect(payload.recoveredJurors[i].toLowerCase()).toBe(jurorAddresses[i].toLowerCase());
+      }
+    });
+
+    it('relays multi-sig settlement successfully when threshold is satisfied', async () => {
+      const marketId = ethers.keccak256(ethers.toUtf8Bytes('claim_multisig_settle_pass'));
+      const payload = relayer.prepareMultiSigSettlementPayload({
+        marketId,
+        verdict: 1, // MISINFORMED
+        jurors: jurorAddresses,
+        jurorPrivateKeys: jurorPrivateKeys.slice(0, 5), // 5 signatures
+        nonce: 7702
+      });
+
+      const result = await relayer.relayMultiSigSettlement(payload);
+
+      expect(result.status).toBe('CONFIRMED');
+      expect(result.signaturesCount).toBe(5);
+      expect(result.requiredQuorum).toBe(5);
+      expect(result.txHash).toMatch(/^0x[a-f0-9]{64}$/i);
+    });
+
+    it('rejects multi-sig settlement when quorum threshold is not met', async () => {
+      const marketId = ethers.keccak256(ethers.toUtf8Bytes('claim_multisig_fail_subquorum'));
+
+      // Provide only 3 signatures when 5 are required
+      const subQuorumKeys = jurorPrivateKeys.slice(0, 3);
+
+      const payload = relayer.prepareMultiSigSettlementPayload({
+        marketId,
+        verdict: 1,
+        jurors: jurorAddresses,
+        jurorPrivateKeys: subQuorumKeys,
+        nonce: 7703
+      });
+
+      expect(payload.signatures.length).toBe(3);
+      expect(payload.requiredQuorum).toBe(5);
+
+      await expect(relayer.relayMultiSigSettlement(payload)).rejects.toThrow(/Quorum not met/);
+    });
+  });
 });
+

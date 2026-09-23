@@ -1,0 +1,61 @@
+{
+  "lexicon": 1,
+  "id": "social.veracities.courtroom.verdict",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A federated jury consensus verdict published to an ATProto PDS repository.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["caseId", "claimText", "verdict", "confidence", "jurorDids", "attestationId", "resolvedAt"],
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "description": "Case docket identifier this verdict resolves"
+          },
+          "claimText": {
+            "type": "string",
+            "description": "Original claim text adjudicated"
+          },
+          "verdict": {
+            "type": "string",
+            "description": "Adjudicated epistemic outcome",
+            "enum": ["VERIFIED", "MISINFORMED", "DISPUTED", "NEED_CONTEXT"]
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Jury consensus confidence score from 0.0 to 1.0"
+          },
+          "jurorDids": {
+            "type": "array",
+            "description": "Summoned sortition jurors who reached consensus",
+            "items": { "type": "string" }
+          },
+          "decisiveWhistleblowerDid": {
+            "type": "string",
+            "description": "DID of whistleblower whose evidence decided the trial (if applicable)"
+          },
+          "primaryEvidenceCid": {
+            "type": "string",
+            "description": "Content-addressed storage URI of decisive proof (ipfs://, ar://)"
+          },
+          "attestationId": {
+            "type": "string",
+            "description": "Cryptographic or on-chain attestation ID"
+          },
+          "signatures": {
+            "type": "array",
+            "description": "EIP-712 cryptographic signatures from threshold jurors or oracle",
+            "items": { "type": "string" }
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "ISO 8601 timestamp of verdict resolution"
+          }
+        }
+      }
+    }
+  }
+}

@@ -264,6 +264,146 @@ export class OracleRelayerService {
   }
 
   /**
+   * Prepares an M-of-N citizen juror threshold EIP-712 settlement payload.
+   */
+  prepareMultiSigSettlementPayload({
+    marketId,
+    verdict,
+    decisiveWhistleblower = ethers.ZeroAddress,
+    jurors = [],
+    jurorPrivateKeys = [],
+    timestamp = Math.floor(Date.now() / 1000),
+    nonce = this.getNextNonce(),
+    chainId = this.chainId,
+    verifyingContract = this.verifyingContract
+  }) {
+    if (this.usedNonces.has(nonce)) {
+      throw new Error(`Nonce ${nonce} has already been consumed!`);
+    }
+
+    if (!jurors || jurors.length === 0) {
+      throw new Error('Jurors array cannot be empty for multi-sig settlement');
+    }
+
+    const requiredQuorum = Math.floor((jurors.length * 2 + 2) / 3);
+
+    const { digest, domainSeparator, structHash } = this.computeVerdictDigest({
+      marketId,
+      verdict,
+      decisiveWhistleblower,
+      jurors,
+      timestamp,
+      nonce,
+      chainId,
+      verifyingContract
+    });
+
+    const signatures = [];
+    const recoveredJurors = [];
+
+    for (const key of jurorPrivateKeys) {
+      const { signature, recoveredSigner } = this.signVerdictDigest(digest, key);
+      signatures.push(signature);
+      recoveredJurors.push(recoveredSigner);
+    }
+
+    return {
+      marketId,
+      verdict,
+      decisiveWhistleblower: ethers.getAddress(decisiveWhistleblower || ethers.ZeroAddress),
+      jurors: jurors.map(j => ethers.getAddress(j)),
+      timestamp,
+      nonce,
+      signatures,
+      recoveredJurors,
+      requiredQuorum,
+      digest,
+      domainSeparator,
+      structHash
+    };
+  }
+
+  /**
+   * Relays an M-of-N threshold multi-sig verdict settlement to the blockchain or simulation engine.
+   */
+  async relayMultiSigSettlement(payload, options = {}) {
+    const isSimulate = options.simulate ?? this.simulateMode;
+    const { marketId, verdict, decisiveWhistleblower, jurors, timestamp, nonce, signatures, requiredQuorum } = payload;
+
+    if (this.usedNonces.has(nonce)) {
+      throw new Error(`Replay Protection: Nonce ${nonce} already submitted.`);
+    }
+
+    if (signatures.length < requiredQuorum) {
+      throw new Error(`Quorum not met: received ${signatures.length} signatures, requires ${requiredQuorum}`);
+    }
+
+    const statusRecord = {
+      marketId,
+      verdict,
+      status: 'SUBMITTING',
+      submittedAt: new Date().toISOString(),
+      nonce,
+      signaturesCount: signatures.length,
+      requiredQuorum,
+      txHash: null,
+      blockNumber: null,
+      error: null
+    };
+    this.settlements.set(marketId, statusRecord);
+
+    if (isSimulate) {
+      const mockTxHash = ethers.keccak256(ethers.toUtf8Bytes(`tx_multisig_${marketId}_${nonce}_${Date.now()}`));
+      statusRecord.status = 'CONFIRMED';
+      statusRecord.txHash = mockTxHash;
+      statusRecord.blockNumber = 1294825;
+      statusRecord.confirmedAt = new Date().toISOString();
+      statusRecord.mode = 'SIMULATION';
+      this.usedNonces.add(nonce);
+      return statusRecord;
+    }
+
+    // Live on-chain execution
+    try {
+      const provider = new ethers.JsonRpcProvider(options.rpcUrl || this.rpcUrl);
+      const relayerWallet = new ethers.Wallet(options.relayerPrivateKey || this.relayerPrivateKey, provider);
+      const contractAddress = options.contractAddress || this.verifyingContract;
+
+      const buildDir = path.resolve(__dirname, '../../contracts/build');
+      const marketArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'ValidationMarket.json'), 'utf8'));
+
+      const contract = new ethers.Contract(contractAddress, marketArtifact.abi, relayerWallet);
+
+      const tx = await contract.settleMarketMultiSig(
+        marketId,
+        verdict,
+        decisiveWhistleblower,
+        jurors,
+        timestamp,
+        nonce,
+        signatures
+      );
+
+      statusRecord.txHash = tx.hash;
+      const receipt = await tx.wait();
+
+      statusRecord.status = 'CONFIRMED';
+      statusRecord.blockNumber = receipt.blockNumber;
+      statusRecord.gasUsed = receipt.gasUsed.toString();
+      statusRecord.confirmedAt = new Date().toISOString();
+      statusRecord.mode = 'LIVE';
+      this.usedNonces.add(nonce);
+
+      return statusRecord;
+    } catch (err) {
+      statusRecord.status = 'FAILED';
+      statusRecord.error = err.message;
+      throw err;
+    }
+  }
+
+
+  /**
    * Queues an attestation for background daemon processing.
    */
   queueVerdict(verdictData) {

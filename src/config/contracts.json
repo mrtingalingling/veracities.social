@@ -1,29 +1,60 @@
 {
   "network": "base-sepolia",
   "chainId": 84532,
-  "deployedAt": "2026-09-23T21:18:10.819Z",
-  "deployer": "0x6b8246516a68bA0c683A00B667912A6Fa9428763",
+  "deployedAt": "2026-09-23T23:00:01.707Z",
+  "deployer": "0x5b5EeA6f38460b3B43bB7B3d1385Aec4Ce94B284",
   "protocolTreasury": "0x1111111111111111111111111111111111111111",
   "oracleSigner": "0x2222222222222222222222222222222222222222",
+  "proxyPattern": "UUPS / ERC-1967",
   "contracts": {
     "ValidationMarket": {
-      "address": "0x5fAAa4fBb555c2DB9F9dE3e039cB4e627B6308FE",
+      "address": "0xb42d5333c766f5f9D2daa38F0C8F9369c69f7dD3",
+      "implementation": "0x08be2772a47e0C63eECca1994f8a7D399D7f3B58",
+      "isUpgradeable": true,
+      "proxyType": "ERC1967",
       "abi": [
         {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_protocolTreasury",
-              "type": "address"
-            },
-            {
-              "internalType": "address",
-              "name": "_oracleSigner",
-              "type": "address"
-            }
-          ],
+          "inputs": [],
           "stateMutability": "nonpayable",
           "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationNotAContract",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationZeroAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidInitialization",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NotInitializing",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UpgradeCallFailed",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "version",
+              "type": "uint64"
+            }
+          ],
+          "name": "Initialized",
+          "type": "event"
         },
         {
           "anonymous": false,
@@ -97,6 +128,49 @@
             }
           ],
           "name": "MarketSettled",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "marketId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "enum ValidationMarket.Outcome",
+              "name": "finalVerdict",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "evidenceBounty",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "jurorQuorumPool",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "signaturesCount",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "requiredQuorum",
+              "type": "uint256"
+            }
+          ],
+          "name": "MarketSettledMultiSig",
           "type": "event"
         },
         {
@@ -229,6 +303,19 @@
             }
           ],
           "name": "StakePlaced",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "implementation",
+              "type": "address"
+            }
+          ],
+          "name": "Upgraded",
           "type": "event"
         },
         {
@@ -377,6 +464,24 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "_protocolTreasury",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "_oracleSigner",
+              "type": "address"
+            }
+          ],
+          "name": "initialize",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "bytes32",
               "name": "",
               "type": "bytes32"
@@ -511,6 +616,19 @@
           "type": "function"
         },
         {
+          "inputs": [],
+          "name": "proxiableUUID",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
           "inputs": [
             {
               "internalType": "bytes32",
@@ -549,6 +667,49 @@
             }
           ],
           "name": "settleMarket",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "marketId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint8",
+              "name": "verdict",
+              "type": "uint8"
+            },
+            {
+              "internalType": "address",
+              "name": "decisiveWhistleblower",
+              "type": "address"
+            },
+            {
+              "internalType": "address[]",
+              "name": "jurors",
+              "type": "address[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timestamp",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes[]",
+              "name": "signatures",
+              "type": "bytes[]"
+            }
+          ],
+          "name": "settleMarketMultiSig",
           "outputs": [],
           "stateMutability": "nonpayable",
           "type": "function"
@@ -624,6 +785,24 @@
         {
           "inputs": [
             {
+              "internalType": "address",
+              "name": "newImplementation",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "upgradeToAndCall",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
               "internalType": "bytes32",
               "name": "",
               "type": "bytes32"
@@ -650,18 +829,40 @@
       ]
     },
     "CourtroomEscrow": {
-      "address": "0x37B22a68b985Cb9082aE7Ea758759d4033E8E5b2",
+      "address": "0xa2d6a6dd5042455905f2B715E66b380EF2604Df5",
+      "implementation": "0x9940B3984179dA70B54F4aF9b9448702Ae6bE7fe",
+      "isUpgradeable": true,
+      "proxyType": "ERC1967",
       "abi": [
         {
-          "inputs": [
-            {
-              "internalType": "address",
-              "name": "_protocolTreasury",
-              "type": "address"
-            }
-          ],
+          "inputs": [],
           "stateMutability": "nonpayable",
           "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationNotAContract",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationZeroAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidInitialization",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NotInitializing",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UpgradeCallFailed",
+          "type": "error"
         },
         {
           "anonymous": false,
@@ -779,6 +980,19 @@
           "anonymous": false,
           "inputs": [
             {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "version",
+              "type": "uint64"
+            }
+          ],
+          "name": "Initialized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
               "indexed": true,
               "internalType": "address",
               "name": "oldOwner",
@@ -836,6 +1050,19 @@
             }
           ],
           "name": "RefundClaimed",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "implementation",
+              "type": "address"
+            }
+          ],
+          "name": "Upgraded",
           "type": "event"
         },
         {
@@ -1034,6 +1261,19 @@
           "type": "function"
         },
         {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_protocolTreasury",
+              "type": "address"
+            }
+          ],
+          "name": "initialize",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
           "inputs": [],
           "name": "owner",
           "outputs": [
@@ -1054,6 +1294,19 @@
               "internalType": "address",
               "name": "",
               "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "proxiableUUID",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
             }
           ],
           "stateMutability": "view",
@@ -1133,6 +1386,955 @@
           "outputs": [],
           "stateMutability": "nonpayable",
           "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newImplementation",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "upgradeToAndCall",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        }
+      ]
+    },
+    "EpistemicGovernor": {
+      "address": "0x81Fee1017d60661e1c3F07f5a31D733281324831",
+      "implementation": "0x6EC2234c07e95e746f98088ACa2a7E2024cdC328",
+      "isUpgradeable": true,
+      "proxyType": "ERC1967",
+      "parentFramework": "STANDALONE",
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "FrameworkExecutionFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationNotAContract",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationZeroAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint8",
+              "name": "voterTier",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint8",
+              "name": "requiredTier",
+              "type": "uint8"
+            }
+          ],
+          "name": "InsufficientTier",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidInitialization",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NotInitializing",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "nullifierHash",
+              "type": "bytes32"
+            }
+          ],
+          "name": "NullifierAlreadyUsed",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "ProposalAlreadyExists",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "ProposalAlreadySettled",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "ProposalNotFound",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "currentVotes",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "requiredQuorum",
+              "type": "uint256"
+            }
+          ],
+          "name": "QuorumNotReached",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ReentrancyGuardLocked",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "Unauthorized",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UpgradeCallFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "VotingNotActive",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "nullifierHash",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "bool",
+              "name": "support",
+              "type": "bool"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint8",
+              "name": "voterTier",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "weight",
+              "type": "uint256"
+            }
+          ],
+          "name": "AnonymousVoteCast",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "version",
+              "type": "uint64"
+            }
+          ],
+          "name": "Initialized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "oldRoot",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "newRoot",
+              "type": "bytes32"
+            }
+          ],
+          "name": "MerkleRootUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "oldParent",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newParent",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum EpistemicGovernor.ParentFramework",
+              "name": "oldFramework",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum EpistemicGovernor.ParentFramework",
+              "name": "newFramework",
+              "type": "uint8"
+            }
+          ],
+          "name": "ParentDAOConfigured",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "indexed": false,
+              "internalType": "string",
+              "name": "descriptionCid",
+              "type": "string"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "proposer",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum EpistemicGovernor.EpistemicTier",
+              "name": "minTierRequired",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "endTime",
+              "type": "uint256"
+            }
+          ],
+          "name": "ProposalCreated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "ProposalExecuted",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "parentDAO",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "enum EpistemicGovernor.ParentFramework",
+              "name": "framework",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "bytes",
+              "name": "actionData",
+              "type": "bytes"
+            }
+          ],
+          "name": "ProposalForwardedToParent",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "implementation",
+              "type": "address"
+            }
+          ],
+          "name": "Upgraded",
+          "type": "event"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_parentDAO",
+              "type": "address"
+            },
+            {
+              "internalType": "enum EpistemicGovernor.ParentFramework",
+              "name": "_framework",
+              "type": "uint8"
+            }
+          ],
+          "name": "configureParentDAO",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "string",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "descriptionCid",
+              "type": "string"
+            },
+            {
+              "internalType": "enum EpistemicGovernor.EpistemicTier",
+              "name": "minTierRequired",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "votingPeriodSeconds",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "quorumThreshold",
+              "type": "uint256"
+            }
+          ],
+          "name": "createProposal",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "executeProposal",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "target",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "executeWithParentFramework",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getProposalCount",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "enum EpistemicGovernor.EpistemicTier",
+              "name": "tier",
+              "type": "uint8"
+            }
+          ],
+          "name": "getTierWeight",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "_initialMerkleRoot",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "_parentDAO",
+              "type": "address"
+            },
+            {
+              "internalType": "enum EpistemicGovernor.ParentFramework",
+              "name": "_frameworkType",
+              "type": "uint8"
+            }
+          ],
+          "name": "initialize",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "name",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "parentDAO",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "parentFramework",
+          "outputs": [
+            {
+              "internalType": "enum EpistemicGovernor.ParentFramework",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "proposalDeadline",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "name": "proposalList",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "proposalSnapshot",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "proposalVotes",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "againstVotes",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "forVotes",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "abstainVotes",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "name": "proposals",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "string",
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "descriptionCid",
+              "type": "string"
+            },
+            {
+              "internalType": "address",
+              "name": "proposer",
+              "type": "address"
+            },
+            {
+              "internalType": "enum EpistemicGovernor.EpistemicTier",
+              "name": "minTierRequired",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "startTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "endTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "forVotes",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "againstVotes",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum EpistemicGovernor.ProposalStatus",
+              "name": "status",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "quorumThreshold",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "proxiableUUID",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "name": "quorum",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "semaphoreMerkleRoot",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            }
+          ],
+          "name": "state",
+          "outputs": [
+            {
+              "internalType": "enum IGovernorStandard.ProposalState",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "_newRoot",
+              "type": "bytes32"
+            }
+          ],
+          "name": "updateMerkleRoot",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newImplementation",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "upgradeToAndCall",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "name": "usedNullifiers",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "version",
+          "outputs": [
+            {
+              "internalType": "string",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes32",
+              "name": "proposalId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "nullifierHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bool",
+              "name": "support",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint8",
+              "name": "voterTier",
+              "type": "uint8"
+            }
+          ],
+          "name": "voteAnonymous",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "ERC1967Proxy": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "_logic",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "_data",
+              "type": "bytes"
+            }
+          ],
+          "stateMutability": "payable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationZeroAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InitializationFailed",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "implementation",
+              "type": "address"
+            }
+          ],
+          "name": "Upgraded",
+          "type": "event"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "fallback"
+        },
+        {
+          "inputs": [],
+          "name": "implementation",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "stateMutability": "payable",
+          "type": "receive"
         }
       ]
     }

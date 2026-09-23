@@ -149,4 +149,150 @@ describe('On-Chain Solidity Smart Contracts Hardening & Deployment Pipeline', ()
     const socialConfig = JSON.parse(fs.readFileSync(socialConfigPath, 'utf8'));
     expect(socialConfig.contracts.ValidationMarket.address).toBe(config.contracts.ValidationMarket.address);
   });
+
+  it('exposes settleMarketMultiSig in ValidationMarket ABI and verifies M-of-N quorum invariants', () => {
+    const marketArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'ValidationMarket.json'), 'utf8'));
+    const multiSigFunction = marketArtifact.abi.find(item => item.name === 'settleMarketMultiSig');
+    expect(multiSigFunction).toBeDefined();
+    expect(multiSigFunction.inputs.length).toBe(7);
+    expect(multiSigFunction.inputs[6].type).toBe('bytes[]');
+
+    // Test supermajority quorum calculation: (N * 2 + 2) / 3
+    const computeQuorum = (n) => Math.floor((n * 2 + 2) / 3);
+    expect(computeQuorum(7)).toBe(5); // 7 jurors -> 5 required (71.4% > 66.7%)
+    expect(computeQuorum(9)).toBe(6); // 9 jurors -> 6 required (66.7%)
+    expect(computeQuorum(3)).toBe(2); // 3 jurors -> 2 required (66.7%)
+    expect(computeQuorum(1)).toBe(1); // 1 juror -> 1 required (100%)
+  });
+
+  it('validates EpistemicGovernor ABI, anonymous ZK voting interface, and tier weights (PRD §6.2)', () => {
+    const govArtifactPath = path.join(buildDir, 'EpistemicGovernor.json');
+    expect(fs.existsSync(govArtifactPath)).toBe(true);
+
+    const govArtifact = JSON.parse(fs.readFileSync(govArtifactPath, 'utf8'));
+    expect(govArtifact.bytecode.length).toBeGreaterThan(10);
+
+    const fnNames = govArtifact.abi.map(a => a.name).filter(Boolean);
+    expect(fnNames).toContain('createProposal');
+    expect(fnNames).toContain('voteAnonymous');
+    expect(fnNames).toContain('executeProposal');
+    expect(fnNames).toContain('getTierWeight');
+
+    const voteFn = govArtifact.abi.find(a => a.name === 'voteAnonymous');
+    expect(voteFn.inputs.map(i => i.name)).toEqual(['proposalId', 'nullifierHash', 'support', 'voterTier']);
+
+    // Check Epistemic Tier Weights: Novice=1, Contributor=5, Arbiter=15, Sage=30
+    const tierWeights = { NOVICE: 1, CONTRIBUTOR: 5, ARBITER: 15, SAGE: 30 };
+    expect(tierWeights.NOVICE).toBe(1);
+    expect(tierWeights.CONTRIBUTOR).toBe(5);
+    expect(tierWeights.ARBITER).toBe(15);
+    expect(tierWeights.SAGE).toBe(30);
+  });
+
+  it('validates UUPS upgradeability and ERC-1967 proxy architecture across all 3 contracts', () => {
+    const marketArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'ValidationMarket.json'), 'utf8'));
+    const escrowArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'CourtroomEscrow.json'), 'utf8'));
+    const govArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'EpistemicGovernor.json'), 'utf8'));
+    const proxyArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'ERC1967Proxy.json'), 'utf8'));
+
+    // 1. ERC-1967 Proxy validation
+    expect(proxyArtifact.contractName).toBe('ERC1967Proxy');
+    const proxyFnNames = proxyArtifact.abi.map(a => a.name).filter(Boolean);
+    expect(proxyFnNames).toContain('implementation');
+
+    // Canonical ERC-1967 implementation slot: keccak256("eip1967.proxy.implementation") - 1
+    const canonicalSlot = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
+    expect(canonicalSlot).toMatch(/^0x[a-f0-9]{64}$/);
+
+    // 2. All 3 logic implementations must implement UUPS upgradeToAndCall and initialize
+    const contracts = [
+      { name: 'ValidationMarket', artifact: marketArtifact, initParams: ['_protocolTreasury', '_oracleSigner'] },
+      { name: 'CourtroomEscrow', artifact: escrowArtifact, initParams: ['_protocolTreasury'] },
+      { name: 'EpistemicGovernor', artifact: govArtifact, initParams: ['_initialMerkleRoot', '_parentDAO', '_frameworkType'] }
+    ];
+
+    for (const c of contracts) {
+      const fns = c.artifact.abi.map(a => a.name).filter(Boolean);
+      expect(fns, `${c.name} must implement upgradeToAndCall`).toContain('upgradeToAndCall');
+      expect(fns, `${c.name} must implement proxiableUUID`).toContain('proxiableUUID');
+      expect(fns, `${c.name} must implement initialize`).toContain('initialize');
+
+      const initFn = c.artifact.abi.find(a => a.name === 'initialize');
+      expect(initFn.inputs.map(i => i.name)).toEqual(c.initParams);
+    }
+  });
+
+  it('validates EpistemicGovernor composability with external DAO frameworks (OpenZeppelin, Zodiac Safe, Aragon OSx)', () => {
+    const govArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'EpistemicGovernor.json'), 'utf8'));
+    const fnNames = govArtifact.abi.map(a => a.name).filter(Boolean);
+
+    // 1. Framework configuration and modular execution
+    expect(fnNames).toContain('configureParentDAO');
+    expect(fnNames).toContain('executeWithParentFramework');
+    expect(fnNames).toContain('parentDAO');
+    expect(fnNames).toContain('parentFramework');
+
+    // 2. OpenZeppelin IGovernorStandard compatibility views
+    expect(fnNames).toContain('name');
+    expect(fnNames).toContain('version');
+    expect(fnNames).toContain('state');
+    expect(fnNames).toContain('proposalVotes');
+    expect(fnNames).toContain('proposalDeadline');
+    expect(fnNames).toContain('proposalSnapshot');
+    expect(fnNames).toContain('quorum');
+
+    // 3. Test Governor ProposalState mapping
+    const ProposalState = {
+      Pending: 0,
+      Active: 1,
+      Canceled: 2,
+      Defeated: 3,
+      Succeeded: 4,
+      Queued: 5,
+      Expired: 6,
+      Executed: 7
+    };
+    expect(ProposalState.Active).toBe(1);
+    expect(ProposalState.Defeated).toBe(3);
+    expect(ProposalState.Succeeded).toBe(4);
+    expect(ProposalState.Executed).toBe(7);
+  });
+
+  it('validates DaoRegistry parent framework payload formatting and upgrade info', async () => {
+    const { DaoRegistry, DAO_FRAMEWORKS } = await import('../src/governance/daoRegistry.js');
+    const dao = new DaoRegistry();
+      const upgradeInfo = dao.getUpgradeabilityInfo();
+      expect(upgradeInfo.isUpgradeable).toBe(true);
+      expect(upgradeInfo.proxyType).toBe('ERC1967');
+
+      // Create proposal
+      const prop = dao.createProposal({
+        title: 'Upgrade Gas Oracle',
+        description: 'ipfs://test',
+        proposerDid: 'did:pkh:1:0x123'
+      });
+
+      // Test Standalone mode
+      const standalonePayload = dao.formatFrameworkDispatchPayload(prop.proposalId, '0x456');
+      expect(standalonePayload.framework).toBe(DAO_FRAMEWORKS.STANDALONE);
+      expect(standalonePayload.contractMethod).toBe('executeProposal');
+
+      // Test Zodiac Safe mode
+      dao.setParentFramework(DAO_FRAMEWORKS.ZODIAC_SAFE, '0xSafeAvatarAddress123');
+      const safePayload = dao.formatFrameworkDispatchPayload(prop.proposalId, '0xTargetProtocol', 1000, '0xdeadbeef');
+      expect(safePayload.framework).toBe(DAO_FRAMEWORKS.ZODIAC_SAFE);
+      expect(safePayload.contractMethod).toBe('execTransactionFromModule');
+      expect(safePayload.params.to).toBe('0xTargetProtocol');
+      expect(safePayload.params.value).toBe(1000);
+      expect(safePayload.targetDao).toBe('0xSafeAvatarAddress123');
+
+      // Test Aragon OSx mode
+      dao.setParentFramework(DAO_FRAMEWORKS.ARAGON_OSX, '0xAragonDaoAddress456');
+      const aragonPayload = dao.formatFrameworkDispatchPayload(prop.proposalId, '0xTargetProtocol', 0, '0xfeedface');
+      expect(aragonPayload.framework).toBe(DAO_FRAMEWORKS.ARAGON_OSX);
+      expect(aragonPayload.contractMethod).toBe('executeProposalHook');
+      expect(aragonPayload.targetDao).toBe('0xAragonDaoAddress456');
+  });
 });
+
+

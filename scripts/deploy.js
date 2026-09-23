@@ -8,27 +8,41 @@ const __dirname = path.dirname(__filename);
 
 async function deploy() {
   const isSimulation = process.argv.includes('--simulate') || process.argv.includes('--dry-run') || !process.env.RPC_URL;
-  console.log(`[Deployer] Starting deployment (Mode: ${isSimulation ? 'SIMULATION / TEST' : 'LIVE NETWORK'})...`);
+  console.log(`[Deployer] Starting deployment (Mode: ${isSimulation ? 'SIMULATION / TEST' : 'LIVE NETWORK'}, Pattern: UUPS / ERC-1967 Upgradeable)...`);
 
   // 1. Load compiled artifacts
   const buildDir = path.resolve(__dirname, '../contracts/build');
   const marketArtifactPath = path.join(buildDir, 'ValidationMarket.json');
   const escrowArtifactPath = path.join(buildDir, 'CourtroomEscrow.json');
+  const govArtifactPath = path.join(buildDir, 'EpistemicGovernor.json');
+  const proxyArtifactPath = path.join(buildDir, 'ERC1967Proxy.json');
 
-  if (!fs.existsSync(marketArtifactPath) || !fs.existsSync(escrowArtifactPath)) {
+  if (!fs.existsSync(marketArtifactPath) || !fs.existsSync(escrowArtifactPath) || !fs.existsSync(govArtifactPath) || !fs.existsSync(proxyArtifactPath)) {
     throw new Error('Build artifacts missing! Run "node scripts/compileContracts.js" first.');
   }
 
   const marketArtifact = JSON.parse(fs.readFileSync(marketArtifactPath, 'utf8'));
   const escrowArtifact = JSON.parse(fs.readFileSync(escrowArtifactPath, 'utf8'));
+  const govArtifact = JSON.parse(fs.readFileSync(govArtifactPath, 'utf8'));
+  const proxyArtifact = JSON.parse(fs.readFileSync(proxyArtifactPath, 'utf8'));
 
   let chainId = 84532; // Default: Base Sepolia
   let networkName = 'base-sepolia';
-  let marketAddress = '';
-  let escrowAddress = '';
+  let marketProxyAddress = '';
+  let marketImplAddress = '';
+  let escrowProxyAddress = '';
+  let escrowImplAddress = '';
+  let govProxyAddress = '';
+  let govImplAddress = '';
   let deployerAddress = '';
   let treasuryAddress = process.env.PROTOCOL_TREASURY_ADDRESS || '0x1111111111111111111111111111111111111111';
   let oracleAddress = process.env.ORACLE_SIGNER_ADDRESS || '0x2222222222222222222222222222222222222222';
+  let parentDAOAddress = process.env.PARENT_DAO_ADDRESS || ethers.ZeroAddress;
+  let defaultMerkleRoot = ethers.keccak256(ethers.toUtf8Bytes('veracities.epistemic.citizens.v1'));
+
+  const marketInterface = new ethers.Interface(marketArtifact.abi);
+  const escrowInterface = new ethers.Interface(escrowArtifact.abi);
+  const govInterface = new ethers.Interface(govArtifact.abi);
 
   if (!isSimulation && process.env.RPC_URL && process.env.DEPLOYER_PRIVATE_KEY) {
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -40,28 +54,54 @@ async function deploy() {
     deployerAddress = wallet.address;
     console.log(`[Deployer] Connected account: ${deployerAddress} on chain ${chainId}`);
 
-    // Deploy ValidationMarket
+    // Deploy ValidationMarket implementation + ERC1967Proxy
     const MarketFactory = new ethers.ContractFactory(marketArtifact.abi, marketArtifact.bytecode, wallet);
-    console.log('[Deployer] Deploying ValidationMarket...');
-    const marketContract = await MarketFactory.deploy(treasuryAddress, oracleAddress);
-    await marketContract.waitForDeployment();
-    marketAddress = await marketContract.getAddress();
-    console.log(`[Deployer] ValidationMarket deployed to: ${marketAddress}`);
+    const marketImpl = await MarketFactory.deploy();
+    await marketImpl.waitForDeployment();
+    marketImplAddress = await marketImpl.getAddress();
 
-    // Deploy CourtroomEscrow
+    const marketInitData = marketInterface.encodeFunctionData('initialize', [treasuryAddress, oracleAddress]);
+    const ProxyFactory = new ethers.ContractFactory(proxyArtifact.abi, proxyArtifact.bytecode, wallet);
+    const marketProxy = await ProxyFactory.deploy(marketImplAddress, marketInitData);
+    await marketProxy.waitForDeployment();
+    marketProxyAddress = await marketProxy.getAddress();
+    console.log(`[Deployer] ValidationMarket Proxy: ${marketProxyAddress} (Impl: ${marketImplAddress})`);
+
+    // Deploy CourtroomEscrow implementation + ERC1967Proxy
     const EscrowFactory = new ethers.ContractFactory(escrowArtifact.abi, escrowArtifact.bytecode, wallet);
-    console.log('[Deployer] Deploying CourtroomEscrow...');
-    const escrowContract = await EscrowFactory.deploy(treasuryAddress);
-    await escrowContract.waitForDeployment();
-    escrowAddress = await escrowContract.getAddress();
-    console.log(`[Deployer] CourtroomEscrow deployed to: ${escrowAddress}`);
+    const escrowImpl = await EscrowFactory.deploy();
+    await escrowImpl.waitForDeployment();
+    escrowImplAddress = await escrowImpl.getAddress();
+
+    const escrowInitData = escrowInterface.encodeFunctionData('initialize', [treasuryAddress]);
+    const escrowProxy = await ProxyFactory.deploy(escrowImplAddress, escrowInitData);
+    await escrowProxy.waitForDeployment();
+    escrowProxyAddress = await escrowProxy.getAddress();
+    console.log(`[Deployer] CourtroomEscrow Proxy: ${escrowProxyAddress} (Impl: ${escrowImplAddress})`);
+
+    // Deploy EpistemicGovernor implementation + ERC1967Proxy
+    const GovFactory = new ethers.ContractFactory(govArtifact.abi, govArtifact.bytecode, wallet);
+    const govImpl = await GovFactory.deploy();
+    await govImpl.waitForDeployment();
+    govImplAddress = await govImpl.getAddress();
+
+    const govInitData = govInterface.encodeFunctionData('initialize', [defaultMerkleRoot, parentDAOAddress, 0]); // 0 = STANDALONE
+    const govProxy = await ProxyFactory.deploy(govImplAddress, govInitData);
+    await govProxy.waitForDeployment();
+    govProxyAddress = await govProxy.getAddress();
+    console.log(`[Deployer] EpistemicGovernor Proxy: ${govProxyAddress} (Impl: ${govImplAddress})`);
   } else {
     // Deterministic simulation deployment
     const randomDeployer = ethers.Wallet.createRandom();
     deployerAddress = randomDeployer.address;
-    marketAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 0 });
-    escrowAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 1 });
-    console.log(`[Deployer] Simulation Addresses:\n  - Deployer: ${deployerAddress}\n  - ValidationMarket: ${marketAddress}\n  - CourtroomEscrow: ${escrowAddress}`);
+    marketImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 0 });
+    marketProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 1 });
+    escrowImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 2 });
+    escrowProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 3 });
+    govImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 4 });
+    govProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 5 });
+
+    console.log(`[Deployer] Simulation Upgradeable Addresses:\n  - Deployer: ${deployerAddress}\n  - ValidationMarket: ${marketProxyAddress} (Impl: ${marketImplAddress})\n  - CourtroomEscrow: ${escrowProxyAddress} (Impl: ${escrowImplAddress})\n  - EpistemicGovernor: ${govProxyAddress} (Impl: ${govImplAddress})`);
   }
 
   // 2. Prepare JSON configuration export
@@ -72,14 +112,32 @@ async function deploy() {
     deployer: deployerAddress,
     protocolTreasury: treasuryAddress,
     oracleSigner: oracleAddress,
+    proxyPattern: 'UUPS / ERC-1967',
     contracts: {
       ValidationMarket: {
-        address: marketAddress,
+        address: marketProxyAddress,
+        implementation: marketImplAddress,
+        isUpgradeable: true,
+        proxyType: 'ERC1967',
         abi: marketArtifact.abi
       },
       CourtroomEscrow: {
-        address: escrowAddress,
+        address: escrowProxyAddress,
+        implementation: escrowImplAddress,
+        isUpgradeable: true,
+        proxyType: 'ERC1967',
         abi: escrowArtifact.abi
+      },
+      EpistemicGovernor: {
+        address: govProxyAddress,
+        implementation: govImplAddress,
+        isUpgradeable: true,
+        proxyType: 'ERC1967',
+        parentFramework: 'STANDALONE',
+        abi: govArtifact.abi
+      },
+      ERC1967Proxy: {
+        abi: proxyArtifact.abi
       }
     }
   };
@@ -98,7 +156,7 @@ async function deploy() {
   fs.writeFileSync(clearCloudConfigPath, JSON.stringify(deploymentConfig, null, 2));
   console.log(`[Deployer] Exported configuration to: ${clearCloudConfigPath}`);
 
-  console.log('[Deployer] Deployment pipeline completed successfully.');
+  console.log('[Deployer] Upgradeable deployment pipeline completed successfully.');
   return deploymentConfig;
 }
 

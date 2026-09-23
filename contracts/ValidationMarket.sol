@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./proxy/Initializable.sol";
+import "./proxy/UUPSUpgradeable.sol";
+
 /**
  * @title ValidationMarket
- * @notice Decentralized Fact-Checking Validation Market with Slashed Pool Evidence Bounties, EIP-712 Settlement & Capital-Lock Protection
+ * @notice Upgradeable Decentralized Fact-Checking Validation Market with Slashed Pool Evidence Bounties,
+ * EIP-712 Settlement, M-of-N Juror Quorums & Capital-Lock Protection (UUPS / ERC-1967).
  */
-contract ValidationMarket {
+contract ValidationMarket is Initializable, UUPSUpgradeable {
     enum Outcome { VERIFIED, MISINFORMED, DISPUTED, NEED_CONTEXT }
     enum MarketStatus { ACTIVE, SETTLED, REFUNDED }
 
@@ -30,7 +34,7 @@ contract ValidationMarket {
     address public owner;
     address public protocolTreasury;
     address public oracleSigner;
-    bytes32 public immutable DOMAIN_SEPARATOR;
+    bytes32 public DOMAIN_SEPARATOR;
 
     uint256 public accumulatedProtocolFees;
     bool private _locked;
@@ -47,6 +51,7 @@ contract ValidationMarket {
     event MarketCreated(bytes32 indexed marketId, string claimText, address indexed creator, uint256 initialStake, uint8 outcome);
     event StakePlaced(bytes32 indexed marketId, address indexed staker, uint8 outcome, uint256 amount);
     event MarketSettled(bytes32 indexed marketId, Outcome finalVerdict, uint256 evidenceBounty, uint256 jurorPool, bool winningPoolZero);
+    event MarketSettledMultiSig(bytes32 indexed marketId, Outcome indexed finalVerdict, uint256 evidenceBounty, uint256 jurorQuorumPool, uint256 signaturesCount, uint256 requiredQuorum);
     event PayoutClaimed(bytes32 indexed marketId, address indexed claimant, uint256 amount);
     event OracleSignerUpdated(address indexed oldSigner, address indexed newSigner);
     event ProtocolTreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
@@ -65,7 +70,15 @@ contract ValidationMarket {
         _locked = false;
     }
 
-    constructor(address _protocolTreasury, address _oracleSigner) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Initializes the upgradeable ValidationMarket logic
+     */
+    function initialize(address _protocolTreasury, address _oracleSigner) external initializer {
         require(_protocolTreasury != address(0), "Invalid treasury");
         require(_oracleSigner != address(0), "Invalid oracle signer");
         owner = msg.sender;
@@ -82,6 +95,11 @@ contract ValidationMarket {
             )
         );
     }
+
+    /**
+     * @notice Restricts contract upgrades to the owner
+     */
+    function _authorizeUpgrade(address /* newImplementation */) internal view override onlyOwner {}
 
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "New owner is zero address");
@@ -148,7 +166,45 @@ contract ValidationMarket {
     }
 
     /**
-     * @notice Settles market using EIP-712 signed oracle attestation and applies losing pool slashing waterfall.
+     * @notice Internal settlement processor applying the losing pool slashing waterfall.
+     */
+    function _executeSettlement(
+        bytes32 marketId,
+        uint8 verdict,
+        address decisiveWhistleblower,
+        address[] memory jurors
+    ) internal {
+        Market storage m = markets[marketId];
+        m.status = MarketStatus.SETTLED;
+        m.finalVerdict = Outcome(verdict);
+        m.decisiveWhistleblower = decisiveWhistleblower;
+        m.participatingJurors = jurors;
+
+        // Losing Pool = Total Pool - Winning Pool
+        uint256 winningPool = m.outcomePools[verdict];
+        uint256 losingPool = m.totalPool > winningPool ? m.totalPool - winningPool : 0;
+
+        uint256 protoFee = (m.totalPool * 5) / 100; // 5% protocol fee
+        uint256 evidenceBounty = (losingPool > 0 && decisiveWhistleblower != address(0)) ? (losingPool * 15) / 100 : 0;
+        uint256 jurorPool = (losingPool > 0 && jurors.length > 0) ? (losingPool * 5) / 100 : 0;
+
+        uint256 netDeductions = protoFee + evidenceBounty + jurorPool;
+        uint256 distributable = m.totalPool > netDeductions ? m.totalPool - netDeductions : 0;
+
+        m.protocolFee = protoFee;
+        m.evidenceBounty = evidenceBounty;
+        m.jurorQuorumPool = jurorPool;
+        m.distributablePool = distributable;
+
+        if (winningPool == 0) {
+            m.winningPoolZero = true;
+        }
+
+        accumulatedProtocolFees += protoFee;
+    }
+
+    /**
+     * @notice Settles market using EIP-712 signed oracle attestation (Single Relayer Mode).
      */
     function settleMarket(
         bytes32 marketId,
@@ -165,7 +221,6 @@ contract ValidationMarket {
         require(!usedNonces[bytes32(nonce)], "Nonce already used");
         require(block.timestamp <= timestamp + 7 days, "Attestation expired");
 
-        // Verify EIP-712 Signature
         bytes32 structHash = keccak256(
             abi.encode(
                 VERDICT_TYPEHASH,
@@ -183,42 +238,81 @@ contract ValidationMarket {
         require(signer == oracleSigner, "Invalid oracle signature");
 
         usedNonces[bytes32(nonce)] = true;
-        m.status = MarketStatus.SETTLED;
-        m.finalVerdict = Outcome(verdict);
-        m.decisiveWhistleblower = decisiveWhistleblower;
-        m.participatingJurors = jurors;
+        _executeSettlement(marketId, verdict, decisiveWhistleblower, jurors);
 
-        // Execute Slashed Pool Waterfall:
-        // Losing Pool = Total Pool - Winning Pool
-        uint256 winningPool = m.outcomePools[verdict];
-        uint256 losingPool = m.totalPool > winningPool ? m.totalPool - winningPool : 0;
+        emit MarketSettled(marketId, m.finalVerdict, m.evidenceBounty, m.jurorQuorumPool, m.winningPoolZero);
+    }
 
-        uint256 protoFee = (m.totalPool * 5) / 100; // 5% protocol fee
-        uint256 evidenceBounty = (losingPool > 0 && decisiveWhistleblower != address(0)) ? (losingPool * 15) / 100 : 0;
-        uint256 jurorPool = (losingPool > 0 && jurors.length > 0) ? (losingPool * 5) / 100 : 0;
+    /**
+     * @notice Settles market using M-of-N citizen juror threshold EIP-712 signatures.
+     */
+    function settleMarketMultiSig(
+        bytes32 marketId,
+        uint8 verdict,
+        address decisiveWhistleblower,
+        address[] calldata jurors,
+        uint256 timestamp,
+        uint256 nonce,
+        bytes[] calldata signatures
+    ) external nonReentrant {
+        Market storage m = markets[marketId];
+        require(m.status == MarketStatus.ACTIVE, "Market not active");
+        require(verdict <= uint8(Outcome.NEED_CONTEXT), "Invalid verdict");
+        require(!usedNonces[bytes32(nonce)], "Nonce already used");
+        require(block.timestamp <= timestamp + 7 days, "Attestation expired");
+        require(jurors.length > 0, "No jurors provided");
 
-        uint256 netDeductions = protoFee + evidenceBounty + jurorPool;
-        uint256 distributable = m.totalPool > netDeductions ? m.totalPool - netDeductions : 0;
+        uint256 requiredQuorum = (jurors.length * 2 + 2) / 3;
+        require(signatures.length >= requiredQuorum, "Quorum threshold not met");
 
-        m.protocolFee = protoFee;
-        m.evidenceBounty = evidenceBounty;
-        m.jurorQuorumPool = jurorPool;
-        m.distributablePool = distributable;
+        bytes32 structHash = keccak256(
+            abi.encode(
+                VERDICT_TYPEHASH,
+                marketId,
+                verdict,
+                decisiveWhistleblower,
+                keccak256(abi.encodePacked(jurors)),
+                timestamp,
+                nonce
+            )
+        );
 
-        // Capital lock defense: if no one staked on the winning outcome, mark winningPoolZero
-        if (winningPool == 0) {
-            m.winningPoolZero = true;
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+
+        address[] memory seenSigners = new address[](signatures.length);
+        uint256 validSignersCount = 0;
+
+        for (uint256 i = 0; i < signatures.length; i++) {
+            address recovered = recoverSigner(digest, signatures[i]);
+            require(recovered != address(0), "Invalid signature");
+
+            bool isJuror = false;
+            for (uint256 j = 0; j < jurors.length; j++) {
+                if (jurors[j] == recovered) {
+                    isJuror = true;
+                    break;
+                }
+            }
+            require(isJuror, "Signer is not an authorized summoned juror");
+
+            for (uint256 k = 0; k < validSignersCount; k++) {
+                require(seenSigners[k] != recovered, "Duplicate juror signature detected");
+            }
+
+            seenSigners[validSignersCount] = recovered;
+            validSignersCount++;
         }
 
-        // Accumulate protocol fee safely via pull pattern
-        accumulatedProtocolFees += protoFee;
+        require(validSignersCount >= requiredQuorum, "Insufficient unique valid juror signatures");
 
-        emit MarketSettled(marketId, m.finalVerdict, evidenceBounty, jurorPool, m.winningPoolZero);
+        usedNonces[bytes32(nonce)] = true;
+        _executeSettlement(marketId, verdict, decisiveWhistleblower, jurors);
+
+        emit MarketSettledMultiSig(marketId, m.finalVerdict, m.evidenceBounty, m.jurorQuorumPool, signatures.length, requiredQuorum);
     }
 
     /**
      * @notice Claim winning wager payout, whistleblower bounty, or juror deliberation fee.
-     * If winningPoolZero is true, distributable pool is refunded pro-rata to all stakers across all outcomes.
      */
     function claimPayout(bytes32 marketId) external nonReentrant {
         Market storage m = markets[marketId];
@@ -227,12 +321,10 @@ contract ValidationMarket {
 
         uint256 payout = 0;
 
-        // 1. Whistleblower 15% Bounty
         if (msg.sender == m.decisiveWhistleblower && m.evidenceBounty > 0) {
             payout += m.evidenceBounty;
         }
 
-        // 2. Juror 5% Quorum Pool Share
         if (m.jurorQuorumPool > 0 && m.participatingJurors.length > 0) {
             for (uint256 i = 0; i < m.participatingJurors.length; i++) {
                 if (m.participatingJurors[i] == msg.sender) {
@@ -242,9 +334,7 @@ contract ValidationMarket {
             }
         }
 
-        // 3. Staker Distribution (Normal Winning Stakers vs. Zero-Winning-Pool Pro-Rata Refund)
         if (m.winningPoolZero) {
-            // No one picked the winning verdict: refund remaining distributable pool pro-rata across all stakers
             uint256 userTotalStake = getUserTotalStake(marketId, msg.sender);
             if (userTotalStake > 0 && m.totalPool > 0) {
                 payout += (userTotalStake * m.distributablePool) / m.totalPool;
@@ -292,4 +382,7 @@ contract ValidationMarket {
     function getOutcomePools(bytes32 marketId) external view returns (uint256[4] memory) {
         return markets[marketId].outcomePools;
     }
+
+    // Storage gap for future upgrades
+    uint256[46] private __gap;
 }

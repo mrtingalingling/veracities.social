@@ -2,13 +2,15 @@
   import MarketView from './components/MarketView.svelte';
   import EscrowSettlementView from './components/EscrowSettlementView.svelte';
   import OracleAttestationView from './components/OracleAttestationView.svelte';
+  import GovernanceView from './components/GovernanceView.svelte';
   import { ValidationMarket } from './market/validationMarket.js';
   import { CourtroomSettlementService } from './settlement/courtroomSettlement.js';
 
   const TABS = {
     MARKETS: 'MARKETS',
     ESCROW: 'ESCROW',
-    ORACLE: 'ORACLE'
+    ORACLE: 'ORACLE',
+    GOVERNANCE: 'GOVERNANCE'
   };
 
   let activeTab = $state(TABS.MARKETS);
@@ -79,6 +81,14 @@
         <span class="material-symbols-outlined">verified</span>
         <span>Courtroom Oracle Attestation Bridge</span>
       </button>
+
+      <button
+        class="nav-tab {activeTab === TABS.GOVERNANCE ? 'active' : ''}"
+        onclick={() => activeTab = TABS.GOVERNANCE}
+      >
+        <span class="material-symbols-outlined">how_to_vote</span>
+        <span>Epistemic DAO & ZK Ballots</span>
+      </button>
     </nav>
   </header>
 
@@ -90,6 +100,8 @@
       <EscrowSettlementView userDid={userWallet.did} settlementService={sharedSettlement} />
     {:else if activeTab === TABS.ORACLE}
       <OracleAttestationView marketInstance={sharedMarket} />
+    {:else if activeTab === TABS.GOVERNANCE}
+      <GovernanceView userDid={userWallet.did} />
     {/if}
   </main>
 </div>
