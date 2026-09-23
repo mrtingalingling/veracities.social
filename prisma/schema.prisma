@@ -1,0 +1,124 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  did                 String       @id
+  handle              String?
+  walletAddress       String?
+  siweNonce           String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  posts               Post[]
+  createdCases        DocketCase[] @relation("CaseCreator")
+  decisiveCases       DocketCase[] @relation("DecisiveContributor")
+  votes               JurorVote[]
+
+  @@index([walletAddress])
+}
+
+model Post {
+  id                  String       @id @default(cuid())
+  uri                 String       @unique
+  cid                 String
+  authorDid           String
+  text                String
+  claimText           String?
+  groundednessScore   Float?
+  createdAt           DateTime     @default(now())
+
+  author              User         @relation(fields: [authorDid], references: [did], onDelete: Cascade)
+  dockets             DocketCase[]
+}
+
+model DocketCase {
+  id                             String       @id
+  title                          String
+  claimText                      String
+  blindedProposition             String?
+  status                         String       @default("ACTIVE")
+  creatorDid                     String
+  postId                         String?
+  finalVerdict                   String?
+  confidence                     Float?
+  reasoning                      String?
+  decisiveEvidenceContributorDid String?
+  decisiveEvidenceUrl            String?
+  onChainTxHash                  String?
+  createdAt                      DateTime     @default(now())
+  concludedAt                    DateTime?
+
+  creator                        User         @relation("CaseCreator", fields: [creatorDid], references: [did])
+  decisiveContributor            User?        @relation("DecisiveContributor", fields: [decisiveEvidenceContributorDid], references: [did])
+  post                           Post?        @relation(fields: [postId], references: [id])
+  votes                          JurorVote[]
+  market                         ValidationMarket?
+}
+
+model JurorVote {
+  id                  String       @id @default(cuid())
+  caseId              String
+  jurorDid            String
+  vote                String
+  weight              Float        @default(1.0)
+  evidenceUrl         String?
+  createdAt           DateTime     @default(now())
+
+  case                DocketCase   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  juror               User         @relation(fields: [jurorDid], references: [did])
+
+  @@unique([caseId, jurorDid])
+}
+
+model ValidationMarket {
+  id                  String       @id
+  caseId              String       @unique
+  claimText           String
+  creatorAddress      String
+  totalPool           String       @default("0")
+  status              String       @default("OPEN")
+  finalVerdict        Int?
+  decisiveWhistleblower String?
+  onChainTxHash       String?
+  winningPoolZero     Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  settledAt           DateTime?
+
+  case                DocketCase   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  stakes              MarketStake[]
+}
+
+model MarketStake {
+  id                  String       @id @default(cuid())
+  marketId            String
+  stakerAddress       String
+  outcome             Int
+  amount              String
+  claimed             Boolean      @default(false)
+  payoutAmount        String?
+  createdAt           DateTime     @default(now())
+
+  market              ValidationMarket @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([stakerAddress])
+  @@index([marketId])
+}
+
+model AttestationRecord {
+  id                  String       @id
+  caseId              String
+  marketId            String?
+  verdict             String
+  confidence          Float
+  oracleSignature     String
+  messageHash         String
+  nonce               String       @unique
+  onChainTxHash       String?
+  verifiedAt          DateTime     @default(now())
+}
