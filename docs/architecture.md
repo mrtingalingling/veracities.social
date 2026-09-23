@@ -1,67 +1,57 @@
-# veracities.social Architecture Blueprint (Layer 1.2 & 1.3)
+# veracities.social Architecture Blueprint (Protocol & Settlement Backend)
 
 ## 1. Overview in the Vera Ecosystem
 
-`veracities.social` hosts the **Social Truth Suite** and **The Courtroom** of the Vera decentralized truth-settlement network.
+`veracities.social` serves as the **headless Protocol & Settlement Backend** of the Vera decentralized truth network. It provides identity broking, truth prediction staking pools, epistemic DAO governance, and formal courtroom settlement rules.
 
 ```mermaid
 graph TD
-    subgraph Layer0 ["Layer 0: Core Epistemic Engine (mrtingalingling/vera)"]
-        V_Engine["Core Heuristics & Local AI<br/>(localAiService.js)"]
-        V_Nano["On-Device AI Engine<br/>(Chrome Gemini Nano Streaming)"]
-        V_P2P["Gossip Swarm Attestation<br/>(p2pNode.js)"]
+    subgraph Layer0 ["Layer 0 & Ingestion Engine (mrtingalingling/vera)"]
+        V_Engine["Core Heuristics & Local AI"]
+        V_Nano["On-Device Chrome Gemini Nano"]
+        V_Scrub["Private Messaging PII Scrubber (Feature 1.2)"]
+        V_P2P["Gossip Swarm Attestation"]
     end
 
-    subgraph Layer1_1 ["Layer 1.1: Identity & Settlement Protocol (mrtingalingling/clearCloud)"]
-        C_Auth["Identity Broker Interface<br/>(authProvider.js)"]
-        C_ATProto["ATProto Agent & DID:PLC<br/>(atprotoProvider.js)"]
-        C_Web3["NFT & Web3 SIWE Interface<br/>(web3NftProvider.js)"]
-        C_Market["Validation Market Registry<br/>(validationMarket.js)"]
-        C_DAO["DAO Governance Placeholder<br/>(daoRegistry.js)"]
+    subgraph LayerProtocol ["Protocol & Settlement Backend (mrtingalingling/veracities.social)"]
+        P_Auth["Identity Broker Interface<br/>(authProvider.js)"]
+        P_ATProto["ATProto Agent & DID:PLC<br/>(atprotoProvider.js)"]
+        P_Web3["NFT & Web3 SIWE Interface<br/>(web3NftProvider.js)"]
+        P_Market["Validation Market Registry<br/>(validationMarket.js)"]
+        P_DAO["Epistemic DAO Governance Registry<br/>(daoRegistry.js)"]
+        P_Settle["Courtroom Settlement Protocol<br/>(courtroomSettlement.js)"]
     end
 
-    subgraph Layer1_2_3 ["Layer 1.2 & 1.3: Social Truth & Courtroom (mrtingalingling/veracities.social)"]
-        S_PII["Private Messaging PII Scrubber<br/>(piiScrubberService.js)"]
-        S_Gate["Falsifiability Gatekeeper<br/>(falsifiabilityGatekeeper.js)"]
-        S_Court["Courtroom Case Manager & DAG<br/>(caseManager.js)"]
-        S_Jury["Juror Engine & AI Judge<br/>(juryEngine.js)"]
-        S_Feed["Groundedness Index & Hidden Rep<br/>(feedVerifier.js)"]
-        S_Overlay["Social Overlays (X, Bluesky, Reddit)<br/>(overlayService.js)"]
+    subgraph LayerApp ["Unified Social Application (mrtingalingling/clearCloud)"]
+        A_Feed["The Feed & Relational Circles (Feature 1.1)"]
+        A_Grounded["Groundedness Index & Hidden Reputation"]
+        A_Court["The Courtroom Deliberation Forum (Feature 1.3)"]
+        A_Overlay["Social Overlays (X, Bluesky, Reddit)"]
     end
 
-    Layer0 -->|"Supplies verified attestations & on-device AI"| Layer1_2_3
-    Layer1_1 -->|"Provides ATProto / Web3 DID authentication"| Layer1_2_3
-    Layer1_1 -->|"Settles disputes & stakes on-chain / via DAO"| Layer1_2_3
+    Layer0 -->|"Supplies local AI, PII scrubber & attestations"| LayerApp
+    Layer0 -->|"Supplies verified attestations"| LayerProtocol
+    LayerProtocol -->|"Provides ATProto Auth & Staking Settlement Protocol"| LayerApp
 ```
 
 ---
 
-## 2. Core Modules
+## 2. Core Protocol Subsystems
 
-### 2.1 Layer 1.2: Private Messaging Add-on (`src/messaging/`)
-- **Zero-Knowledge PII Scrubber (`piiScrubberService.js`)**:
-  - Runs on-device to scrub emails, phone numbers, social handles, and financial identifiers.
-  - Strips gossip preambles and conversational chatter, extracting the core falsifiable claim.
-  - Generates a local preview requiring **explicit user confirmation** before any claim leaves the device.
+### 2.1 Identity Subsystem (`src/identity/`)
+- **ATProto Provider (`atprotoProvider.js`)**: Real BskyAgent integration, DID:PLC directory resolution, and session management.
+- **Web3 NFT Provider (`web3NftProvider.js`)**: EIP-4361 SIWE challenge generation, W3C DID:PKH resolution, and NFT token-gate verification.
+- **Unified Factory (`index.js`)**: `createAuthProvider(type, options)`.
 
-### 2.2 Layer 1.3: The Courtroom (`src/courtroom/`)
-- **Falsifiability Gatekeeper (`falsifiabilityGatekeeper.js`)**:
-  - Strictly admits testable, measurable, and historical claims.
-  - Screens out unprovable subjective claims, aesthetic tastes, and metaphysical beliefs with descriptive tags.
-- **Case Manager (`caseManager.js`)**:
-  - Dockets cases and decomposes compound claims into Directed Acyclic Graphs (DAGs) of interdependent sub-claims.
-  - **14-Day Stale Cold Case Refund**: Inactive cases automatically refund **94% of wagers**, retaining a **6% protocol maintenance fee**.
-  - **Challenge Bond Retrial / Appeals**: Allows cases to be reopened when fresh material evidence emerges. Overturned verdicts reward challengers with bounties; reaffirmed verdicts forfeit the bond.
-- **Jury & AI Judge Engine (`juryEngine.js`)**:
-  - Stake-weighted anonymous juror voting on reasoning rigor and primary documentation.
-  - AI Judge acts as a judicial guardrail synthesizing consensus and filtering ad-hominem distortion.
+### 2.2 Validation Market Subsystem (`src/market/`)
+- **Prediction Pools (`validationMarket.js`)**: Staking pools across Vera's 4 epistemic outcomes (`VERIFIED`, `DISPUTED`, `MISINFORMED`, `NEED_CONTEXT`).
+- **Dynamic Odds**: Real-time payout odds based on proportional liquidity.
+- **Automated Oracle Settlement**: Payout distribution deducting protocol fees.
 
-### 2.3 Layer 1: Social Truth Suite (`src/social/`)
-- **Groundedness Index ($G$) (`feedVerifier.js`)**:
-  $$G = \frac{\text{Facts}}{\text{Facts} + \text{Speculation} + (3 \times \text{Falsehood})}$$
-- **Asymmetric Hidden Reputation**:
-  - Hidden by default to eliminate vanity gaming.
-  - Slow accrual for verified facts; swift, heavy penalties for debunked posts and courtroom slashing.
-  - Governs algorithmic distribution across Circle Tiers (Close Friends, Acquaintances, Network-Wide).
-- **In-Feed Social Overlays (`overlayService.js`)**:
-  - Real-time badge and card formatting for Bluesky, X, Reddit, and YouTube.
+### 2.3 Epistemic DAO Registry Subsystem ("EnDAOsment") (`src/governance/`)
+- **DAO Registry (`daoRegistry.js`)**: Proposal lifecycles, weighted voting, and quorum/consensus threshold calculation.
+
+### 2.4 Courtroom Settlement Protocol (`src/settlement/`)
+- **Cold Case Escrow (`courtroomSettlement.js`)**: Automatic 14-day inactivity settlement (**94% refunded** to depositors, **6% platform maintenance fee** retained).
+- **Challenge Bond Escrow**: Anti-spam staking mechanism for retrials (overturned verdicts award bond + 50% bounty; reaffirmed verdicts forfeit bond).
+- **Jury Consensus Protocol**: Evaluates 66.7% decisive consensus thresholds.

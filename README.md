@@ -1,108 +1,65 @@
-# 🏛️ veracities.social · Layer 1.2 & 1.3 Courtroom & Social Truth Suite
+# ⚖️ veracities.social · Protocol & Settlement Backend
 
-> Private Messaging PII Scrubber (WhatsApp/Telegram), The Courtroom adversarial truth deliberation docket, and Social Truth Overlays (Bluesky, X, Reddit) for the Vera ecosystem.
+> Headless Identity Broker, Validation Market Staking Registry, Epistemic DAO ("EnDAOsment"), and Courtroom Settlement Protocol for the Vera ecosystem.
 
 ---
 
-## 🏗️ Multi-Repository Architecture Blueprint
+## 🏗️ Architecture Blueprint
 
-`veracities.social` consumes Layer 0 (`mrtingalingling/vera`) for epistemic heuristics and Layer 1.1 (`mrtingalingling/clearCloud`) for ATProto identity and validation market settlement:
+`veracities.social` provides the decentralized protocol and settlement backend powering the user-facing social application ([`mrtingalingling/clearCloud`](https://github.com/mrtingalingling/clearCloud)) and consuming on-device local AI from [`mrtingalingling/vera`](https://github.com/mrtingalingling/vera):
 
 ```mermaid
 graph TD
-    subgraph Layer0 ["Layer 0: Core Epistemic Engine (mrtingalingling/vera)"]
+    subgraph Layer0 ["Layer 0 & Ingestion Engine (mrtingalingling/vera)"]
         V_Engine["Core Heuristics & Local AI"]
         V_Nano["On-Device Chrome Gemini Nano"]
-        V_P2P["Gossip Swarm Attestation"]
+        V_Scrub["Private Messaging PII Scrubber (Feature 1.2)"]
     end
 
-    subgraph Layer1_1 ["Layer 1.1: Identity & Settlement (mrtingalingling/clearCloud)"]
-        C_Auth["Identity Broker Interface"]
-        C_ATProto["ATProto Agent & DID:PLC"]
-        C_Market["Validation Market Registry"]
+    subgraph LayerProtocol ["Protocol & Settlement Backend (mrtingalingling/veracities.social)"]
+        P_Auth["Identity Broker Interface"]
+        P_ATProto["ATProto Agent & DID:PLC"]
+        P_Web3["NFT & Web3 SIWE Interface"]
+        P_Market["Validation Market Registry"]
+        P_DAO["Epistemic DAO Governance Registry"]
+        P_Settle["Courtroom Settlement Protocol"]
     end
 
-    subgraph Layer1_2_3 ["Layer 1.2 & 1.3: Social Truth & Courtroom (mrtingalingling/veracities.social)"]
-        S_PII["Private Messaging PII Scrubber"]
-        S_Gate["Falsifiability Gatekeeper"]
-        S_Court["Courtroom Case Manager & DAG"]
-        S_Jury["Juror Engine & AI Judge"]
-        S_Feed["Groundedness Index & Hidden Rep"]
-        S_Overlay["Social Overlays (X, Bluesky, Reddit)"]
+    subgraph LayerApp ["Unified Social Application (mrtingalingling/clearCloud)"]
+        A_Feed["The Feed & Relational Circles (Feature 1.1)"]
+        A_Grounded["Groundedness Index & Hidden Reputation"]
+        A_Court["The Courtroom Deliberation Forum (Feature 1.3)"]
+        A_Overlay["Social Overlays (X, Bluesky, Reddit)"]
     end
 
-    Layer0 -->|"Supplies verified attestations & on-device AI"| Layer1_2_3
-    Layer1_1 -->|"Provides ATProto / Web3 DID authentication"| Layer1_2_3
-    Layer1_1 -->|"Settles disputes & stakes on-chain"| Layer1_2_3
+    Layer0 -->|"Supplies local AI, PII scrubber & attestations"| LayerApp
+    Layer0 -->|"Supplies verified attestations"| LayerProtocol
+    LayerProtocol -->|"Provides ATProto Auth & Staking Settlement Protocol"| LayerApp
 ```
 
 Detailed specification available in [**`docs/architecture.md`**](./docs/architecture.md).
 
 ---
 
-## 🌟 Key Capabilities
+## 🌟 Protocol Subsystems
 
-### 1. Layer 1.2: Private Messaging Add-on (`src/messaging/`)
-- **Zero-Knowledge PII Scrubber**: Cleanses names, emails, phone numbers, handles, and financial IDs directly on-device.
-- **Core Claim Extractor**: Strips hearsay, gossip preambles, and conversational pleasantries.
-- **Explicit Opt-In Guard**: Ensures zero data leaves the user's browser without explicit verification approval.
-
-### 2. Layer 1.3: The Courtroom (`src/courtroom/`)
-- **Falsifiability Gatekeeper**: Strictly admits testable claims; rejects unprovable subjective/aesthetic statements.
-- **Compound Claim DAG Decomposition**: Automatically breaks compound assertions into Directed Acyclic Graphs of sub-claims.
-- **14-Day Stale Cold Case Refund**: Inactive cases refund **94% of wagers**, retaining a **6% protocol maintenance fee**.
-- **Challenge Bond Retrial / Appeals**: Allows cases to be reopened when fresh evidence emerges.
-- **Anonymous Jury & AI Judge**: Stake-weighted community jury voting paired with neutral AI judicial summaries.
-
-### 3. Layer 1: Social Truth Suite (`src/social/`)
-- **Groundedness Index ($G$)**: Algorithmic ranking emphasizing verifiable facts and penalizing debunked claims ($3\times$ weight).
-- **Asymmetric Hidden Reputation**: Protects feeds against rage-bait with severe penalties and gradual accrual.
-- **Social Overlays**: Generates embedded cards with Vera's 4 epistemic badges (`verified`, `disputed`, `misinformed`, `need-additional-context`) for Bluesky, X, Reddit, and YouTube.
+1. **Identity Broker Subsystem (`src/identity/`)**:
+   - ATProto (`@atproto/api` BskyAgent, `did:plc` resolution, session verification).
+   - Web3 SIWE (EIP-4361, W3C `did:pkh` resolution, ERC-721 token gating placeholder).
+2. **Validation Market Subsystem (`src/market/`)**:
+   - Prediction market staking pools, dynamic odds, and automated settlement across Vera's 4 epistemic outcomes (`VERIFIED`, `DISPUTED`, `MISINFORMED`, `NEED_CONTEXT`).
+3. **Epistemic DAO Registry Subsystem ("EnDAOsment") (`src/governance/`)**:
+   - Proposal creation, weighted voting, and quorum/consensus evaluation.
+4. **Courtroom Settlement Protocol (`src/settlement/`)**:
+   - 14-day cold case refund distribution (**94% refunded**, **6% protocol fee** retained).
+   - Challenge bond retrial escrow (50% bounty reward for overturned verdicts).
+   - Decisive jury consensus tallying (66.7% threshold).
 
 ---
 
 ## 🚀 Quickstart & Testing
 
 ```bash
-# Install dependencies
 npm install
-
-# Run Vitest test suite (18 unit & integration tests)
 npm test
-```
-
----
-
-## 🔗 Cross-Repository Interoperability
-
-```javascript
-import { piiScrubber, caseManager, overlayService } from 'veracities-social';
-import { analyzeClaimLocally } from '@vera/core';
-import { createAuthProvider, ValidationMarket } from 'clearcloud';
-
-// 1. Scrub PII from private message
-const preview = piiScrubber.createVerificationPreview(rawMessage);
-preview.isApproved = true;
-
-// 2. Local AI claim analysis via Vera Layer 0
-const analysis = await piiScrubber.confirmAndVerify(preview, analyzeClaimLocally);
-
-// 3. Authenticate with ATProto via clearCloud Layer 1.1
-const auth = createAuthProvider('atproto');
-const session = await auth.authenticate({ identifier: 'user.bsky.social', password: 'app-password' });
-
-// 4. Docket in Courtroom Layer 1.3
-const docketedCase = caseManager.openCase({
-  title: 'Investigative Case',
-  claimText: preview.coreClaim,
-  creatorDid: session.did
-});
-
-// 5. Generate Bluesky feed overlay card
-const overlay = overlayService.createOverlayCard({
-  platform: 'bluesky',
-  postId: 'at://did:plc:.../app.bsky.feed.post/123',
-  postText: preview.coreClaim,
-  analysis
-});
 ```

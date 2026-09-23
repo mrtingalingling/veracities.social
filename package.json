@@ -1,7 +1,7 @@
 {
   "name": "veracities-social",
   "version": "0.1.0",
-  "description": "veracities.social - Layer 1.2 & 1.3: Private Messaging PII Scrubber, Courtroom Deliberation & Social Truth Suite for Vera",
+  "description": "veracities.social - Protocol & Settlement Backend for the Vera Ecosystem",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
@@ -9,10 +9,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vera/core": "github:mrtingalingling/vera#main",
-    "clearcloud": "github:mrtingalingling/clearCloud#feat/layer1.1-atproto-identity"
+    "@atproto/api": "^0.13.19",
+    "@vera/core": "github:mrtingalingling/vera#main"
   },
   "devDependencies": {
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.8"
   }
 }
