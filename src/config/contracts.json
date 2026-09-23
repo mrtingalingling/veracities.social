@@ -1,13 +1,13 @@
 {
   "network": "base-sepolia",
   "chainId": 84532,
-  "deployedAt": "2026-09-23T20:56:11.089Z",
-  "deployer": "0x5e90Ec68549A37109e8e2eF45a0ca41eEb15f6B8",
+  "deployedAt": "2026-09-23T21:13:02.020Z",
+  "deployer": "0xaF0673c737ca705F0a5A63cF7C587C2042e08572",
   "protocolTreasury": "0x1111111111111111111111111111111111111111",
   "oracleSigner": "0x2222222222222222222222222222222222222222",
   "contracts": {
     "ValidationMarket": {
-      "address": "0x0F0fdde2bC77e2c9142286819AbC908ADddE7b65",
+      "address": "0x5415906702286F99485BF5475366fCeA49073247",
       "abi": [
         {
           "inputs": [
@@ -650,7 +650,7 @@
       ]
     },
     "CourtroomEscrow": {
-      "address": "0xeD0b4ff1028D6AB42f2bAe7b103a3BDE620713c3",
+      "address": "0xcEd79C6B5845718D0d887E3B9b7e2ac533Eeb7EA",
       "abi": [
         {
           "inputs": [

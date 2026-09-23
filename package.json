@@ -10,7 +10,8 @@
     "test": "node scripts/compileContracts.js && vitest run",
     "test:watch": "vitest",
     "compile:contracts": "node scripts/compileContracts.js",
-    "deploy": "node scripts/deploy.js"
+    "deploy": "node scripts/deploy.js",
+    "relayer": "node scripts/relayer.js"
   },
   "dependencies": {
     "@atproto/api": "^0.13.19",
