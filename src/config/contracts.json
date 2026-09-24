@@ -1,15 +1,15 @@
 {
   "network": "base-sepolia",
   "chainId": 84532,
-  "deployedAt": "2026-09-24T02:16:42.481Z",
-  "deployer": "0x7D5BaA7f469198B2a3B4944336c653279c5e2e5F",
+  "deployedAt": "2026-09-24T02:20:16.550Z",
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "protocolTreasury": "0x1111111111111111111111111111111111111111",
   "oracleSigner": "0x2222222222222222222222222222222222222222",
   "proxyPattern": "UUPS / ERC-1967",
   "contracts": {
     "ValidationMarket": {
-      "address": "0x3E672Bc4F144d724f16FEb96e7DE4c9f26aD4fa4",
-      "implementation": "0x5C6D636A426043bd1fcFDc1E58f749Bb3141f3F3",
+      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "implementation": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "abi": [
@@ -829,8 +829,8 @@
       ]
     },
     "CourtroomEscrow": {
-      "address": "0x0017764e73C90C0Ea716f36661638E59744ea1cF",
-      "implementation": "0x39e763FdB9BB9D629748E9EF3ea133A1dA39C3D7",
+      "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+      "implementation": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "abi": [
@@ -1408,8 +1408,8 @@
       ]
     },
     "EpistemicGovernor": {
-      "address": "0x1Fb967f035bE78F6d22fCfAc311b4C6bc6195b63",
-      "implementation": "0x8cEb4091B44A7b8ADABCeD0C431E510c59566A68",
+      "address": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+      "implementation": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "parentFramework": "STANDALONE",
@@ -2275,8 +2275,8 @@
       ]
     },
     "EpistemicCrsManager": {
-      "address": "0x210533324C030B36A9b2F688445e8BCfAf4B5572",
-      "implementation": "0x6beb594A84a278739d64a484580911F3c3e48451",
+      "address": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+      "implementation": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "abi": [

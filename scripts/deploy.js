@@ -108,9 +108,10 @@ async function deploy() {
     crsProxyAddress = await crsProxy.getAddress();
     console.log(`[Deployer] EpistemicCrsManager Proxy: ${crsProxyAddress} (Impl: ${crsImplAddress})`);
   } else {
-    // Deterministic simulation deployment
-    const randomDeployer = ethers.Wallet.createRandom();
-    deployerAddress = randomDeployer.address;
+    // Deterministic simulation deployment (avoids diff churn on test runs)
+    const testPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // Standard Hardhat / Anvil account 0
+    const testWallet = new ethers.Wallet(testPrivateKey);
+    deployerAddress = testWallet.address;
     marketImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 0 });
     marketProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 1 });
     escrowImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 2 });
@@ -124,10 +125,19 @@ async function deploy() {
   }
 
   // 2. Prepare JSON configuration export
+  const existingConfigPath = path.resolve(__dirname, '../src/config/contracts.json');
+  let deployedAt = new Date().toISOString();
+  if (isSimulation && fs.existsSync(existingConfigPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(existingConfigPath, 'utf8'));
+      if (existing.deployedAt) deployedAt = existing.deployedAt;
+    } catch (_) {}
+  }
+
   const deploymentConfig = {
     network: networkName,
     chainId: chainId,
-    deployedAt: new Date().toISOString(),
+    deployedAt: deployedAt,
     deployer: deployerAddress,
     protocolTreasury: treasuryAddress,
     oracleSigner: oracleAddress,
@@ -168,19 +178,23 @@ async function deploy() {
     }
   };
 
-  // 3. Export to veracities.social/src/config/contracts.json
+  // 3. Export to veracities.social and clearCloud contracts.json
+  const formattedJson = JSON.stringify(deploymentConfig, null, 2) + '\n';
   const socialConfigDir = path.resolve(__dirname, '../src/config');
   if (!fs.existsSync(socialConfigDir)) fs.mkdirSync(socialConfigDir, { recursive: true });
   const socialConfigPath = path.join(socialConfigDir, 'contracts.json');
-  fs.writeFileSync(socialConfigPath, JSON.stringify(deploymentConfig, null, 2));
-  console.log(`[Deployer] Exported configuration to: ${socialConfigPath}`);
+  if (!fs.existsSync(socialConfigPath) || fs.readFileSync(socialConfigPath, 'utf8') !== formattedJson) {
+    fs.writeFileSync(socialConfigPath, formattedJson);
+    console.log(`[Deployer] Exported configuration to: ${socialConfigPath}`);
+  }
 
-  // 4. Export to clearCloud/src/config/contracts.json
   const clearCloudConfigDir = path.resolve(__dirname, '../../clearCloud/src/config');
   if (!fs.existsSync(clearCloudConfigDir)) fs.mkdirSync(clearCloudConfigDir, { recursive: true });
   const clearCloudConfigPath = path.join(clearCloudConfigDir, 'contracts.json');
-  fs.writeFileSync(clearCloudConfigPath, JSON.stringify(deploymentConfig, null, 2));
-  console.log(`[Deployer] Exported configuration to: ${clearCloudConfigPath}`);
+  if (!fs.existsSync(clearCloudConfigPath) || fs.readFileSync(clearCloudConfigPath, 'utf8') !== formattedJson) {
+    fs.writeFileSync(clearCloudConfigPath, formattedJson);
+    console.log(`[Deployer] Exported configuration to: ${clearCloudConfigPath}`);
+  }
 
   console.log('[Deployer] Upgradeable deployment pipeline completed successfully.');
   return deploymentConfig;
