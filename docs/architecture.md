@@ -60,6 +60,20 @@ graph TD
 - **Semaphore ZK Identity Bridge (`zkSemaphoreBridge.js`)**: Anonymous quadratic voting using Semaphore zero-knowledge proofs and single-use nullifiers.
 - **EnDAOsment Framework Adapter**: Dispatches execution payloads to EnDAOsment's `GovernorGeneral` and `TimelockController`.
 
+#### 2.3.1 How We Leverage the EnDAOsment Framework
+1. **Checkpointed Epistemic CRS**: `EpistemicCrsManager.sol` implements `ICrsManager` using OpenZeppelin `Checkpoints.Trace208`, mapping Epistemic Tiers (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage Elder: 3,000) to historical block-level snapshots. This eliminates flash-loan / flash-reputation exploits.
+2. **Two-Stage Deliberation Pipeline**:
+   - **Stage 1 (Epistemic Approval)**: Qualitative truth and platform safety vetting by high-tier Sages and Arbiters via `ApprovalGovernor.sol`.
+   - **Stage 2 (Quadratic Voting)**: Resource allocation and rule changes where citizen votes scale quadratically as $V = \lfloor\sqrt{C}\rfloor$ ($C = V^2$) from credit budgets.
+3. **Safe Timelock Execution**: Succeeded proposals queue into `TimelockControllerUpgradeable` with a 24–48h delay for transparent community review prior to execution.
+4. **ZK Anonymous Bridge**: Voters generate client-side Semaphore ZK proofs to cast ballots without revealing their DIDs, with `EpistemicGovernor.sol` relaying finalized execution payloads.
+
+#### 2.3.2 What Happens if the Framework Updates
+1. **Zero Data Loss via UUPS Storage Decoupling**: All contracts run behind independent ERC-1967 proxies with reserved storage gaps (`uint256[45..48] private __gap;`). Upgrading framework implementations does not affect or erase member badges, proposal records, or CRS checkpoints.
+2. **Interface Compatibility & Dynamic Reconfiguration**: Non-breaking framework updates require zero adjustments. Breaking interface changes can be dynamically reconfigured via `configureParentDAO(ParentFramework.ENDAOSMENT, newAddress)` or adapted via a zero-downtime UUPS proxy upgrade on `EpistemicGovernor.sol`.
+3. **Autonomous Reputation Heuristics**: The Epistemic Quotient ($EQ$) formula lives strictly inside Vera's `EpistemicCrsManager.sol`. Framework updates cannot alter Vera's reputation scoring.
+4. **Modular Fallback**: If the framework pauses or fails, `EpistemicGovernor.sol` falls back to standalone execution or alternative adapters (OpenZeppelin, Gnosis Safe Zodiac, Aragon OSx).
+
 ### 2.4 Courtroom Settlement & Oracle Relayer (`src/settlement/`, `src/oracle/`)
 - **Cold Case Escrow (`courtroomSettlement.js`)**: Automatic 14-day inactivity settlement (**94% refunded** to depositors, **6% platform maintenance fee** retained).
 - **Challenge Bond Escrow**: Anti-spam staking mechanism for retrials (overturned verdicts award bond + 50% bounty; reaffirmed verdicts forfeit bond).

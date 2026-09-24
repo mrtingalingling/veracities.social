@@ -54,7 +54,31 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 
 ---
 
-## 3. veracities.social Specific Operational Steps for Production
+## 3. EnDAOsment Framework Integration: Mechanics & Upgrade Dynamics
+
+`veracities.social` adapts the [**`DAO-Smart-Contract-Framework`**](https://github.com/mrtingalingling/DAO-Smart-Contract-Framework) for non-plutocratic Layer 3 governance:
+
+### 3.1 How We Leverage the Framework
+1. **Checkpointed Epistemic CRS (`EpistemicCrsManager.sol`)**:
+   - Implements `ICrsManager` using OpenZeppelin `Checkpoints.Trace208`, mapping Epistemic Tiers into snapshotted voting power and credit budgets (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage Elder: 3,000 credits).
+   - Historical block-level checkpoints (`getPastCrs`) prevent flash-loan attacks and retroactive reputation manipulation.
+2. **Two-Stage Deliberation Pipeline**:
+   - **Stage 1 (Epistemic Approval Vetting)**: Proposals are vetted by high-tier Sages and Arbiters via `ApprovalGovernor.sol` based on qualitative truth and platform safety merits.
+   - **Stage 2 (Quadratic Voting with Credit Budgets)**: Citizens allocate credits ($C$) where voting weight scales quadratically as $V = \lfloor\sqrt{C}\rfloor$ ($C = V^2$) via `QuadraticGovernor.sol`.
+3. **Safe Timelock Execution**: Succeeded proposals queue into `TimelockController` (24–48h delay) for transparent verification before on-chain execution.
+4. **Semaphore ZK Privacy Bridge**: Client-side zero-knowledge proofs preserve voter anonymity while forwarding execution to `GovernorGeneral.sol`.
+
+### 3.2 What Happens if the Framework Updates
+1. **Zero Data Loss via UUPS Storage Decoupling**: All contracts run behind independent ERC-1967 proxies with reserved storage gaps (`uint256[45..48] private __gap;`). Upgrading framework logic via `upgradeToAndCall` does not modify or delete member reputation checkpoints or proposal histories.
+2. **Backward-Compatible vs. Breaking Interface Evolution**:
+   - Non-breaking updates (optimizations, internal bug fixes) operate seamlessly over existing ABIs.
+   - Breaking interface changes can be dynamically reconfigured via `configureParentDAO(ParentFramework.ENDAOSMENT, newAddress)` or adapted via a zero-downtime UUPS proxy upgrade on `EpistemicGovernor.sol`.
+3. **Autonomous Epistemic Heuristics**: The multi-dimensional Epistemic Quotient ($EQ$) formula and credit scaling reside entirely within `EpistemicCrsManager.sol`, ensuring Vera's reputation rules remain independent of upstream framework updates.
+4. **Modular Fallback Redundancy**: If the framework pauses or fails, `EpistemicGovernor.sol` falls back to standalone execution or alternative adapters (`IGovernorStandard`, `IZodiacModule`, `IAragonPlugin`).
+
+---
+
+## 4. veracities.social Specific Operational Steps for Production
 
 1. **Hosted Database & Redis Configuration**:
    - Provision a PostgreSQL database and a Redis instance, then supply credentials in `.env`:
@@ -73,7 +97,7 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 
 ---
 
-## 4. Local Execution & Testing
+## 5. Local Execution & Testing
 
 ```bash
 # Run unit and integration tests (16 suites, 96 tests)
