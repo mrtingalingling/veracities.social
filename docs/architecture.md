@@ -20,18 +20,23 @@ graph TD
         P_Market["Validation Market Registry<br/>(validationMarket.js)"]
         P_DAO["Epistemic DAO Governance Registry<br/>(daoRegistry.js)"]
         P_Settle["Courtroom Settlement Protocol<br/>(courtroomSettlement.js)"]
+        P_Proxy["UUPS / ERC-1967 Proxies & Modular DAO Adapters<br/>(ERC1967Proxy.sol, IGovernorStandard, IZodiacModule)"]
     end
 
     subgraph LayerApp ["Unified Social Application (mrtingalingling/clearCloud)"]
         A_Feed["The Feed & Relational Circles (Feature 1.1)"]
         A_Grounded["Groundedness Index & Hidden Reputation"]
+        A_Guard["Reputation Stake Guard & Credit Score (Feature 1.4)"]
         A_Court["The Courtroom Deliberation Forum (Feature 1.3)"]
         A_Overlay["Social Overlays (X, Bluesky, Reddit)"]
     end
 
     Layer0 -->|"Supplies local AI, PII scrubber & attestations"| LayerApp
-    Layer0 -->|"Supplies verified attestations"| LayerProtocol
+    Layer0 -.->|"Initiates Case Docket via Extension"| A_Court
+    LayerApp -->|"Dispatches validation wagers & case dockets"| P_Market
+    LayerApp -->|"Dispatches M-of-N signed juror attestations"| LayerProtocol
     LayerProtocol -->|"Provides ATProto Auth & Staking Settlement Protocol"| LayerApp
+    P_Proxy -.->|"Wraps & upgrades contracts"| P_Market
 ```
 
 ---
