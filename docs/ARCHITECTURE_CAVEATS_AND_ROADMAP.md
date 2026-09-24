@@ -1,7 +1,7 @@
 # veracities.social: Architecture Caveats & Implementation Status
 
 > **Canonical Document Reference**: The master, cross-repository architecture blueprint, deployment guide, and remaining caveats ledger is centralized in [**`vera/docs/ARCHITECTURE_CAVEATS_AND_ROADMAP.md`**](../../vera/docs/ARCHITECTURE_CAVEATS_AND_ROADMAP.md). Refer to that document for the unified ecosystem specification.
-> **Repository Test Health**: **96 / 96 Vitest Tests Passing (100% Green)** across 16 test suites.
+> **Repository Test Health**: **97 / 97 Vitest Tests Passing (100% Green)** across 16 test suites.
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## 2. Implemented Features & Verification Matrix
 
-All Layer 2 and Layer 3 features required by the PRD are fully implemented in `veracities.social` and verified with **96 passing tests**:
+All Layer 2 and Layer 3 features required by the PRD are fully implemented in `veracities.social` and verified with **97 passing tests**:
 
 - **Layer 2: Validation Prediction Markets (`src/market/`)**:
   - 4-outcome prediction pools (`VERIFIED`, `DISPUTED`, `MISINFORMED`, `NEED_CONTEXT`) with real-time dynamic odds.
@@ -101,7 +101,7 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 ## 5. Local Execution & Testing
 
 ```bash
-# Run unit and integration tests (16 suites, 96 tests)
+# Run unit and integration tests (16 suites, 97 tests)
 npm test
 
 # Compile Solidity smart contracts
