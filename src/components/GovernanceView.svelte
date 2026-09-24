@@ -250,6 +250,13 @@
         >
           Aragon OSx Plugin
         </button>
+        <button
+          type="button"
+          class="framework-btn {selectedFramework === DAO_FRAMEWORKS.ENDAOSMENT ? 'active' : ''}"
+          onclick={() => handleFrameworkChange(DAO_FRAMEWORKS.ENDAOSMENT)}
+        >
+          EnDAOsment (Stage 1 Approval + Stage 2 Quadratic)
+        </button>
       </div>
     </div>
 

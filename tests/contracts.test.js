@@ -292,7 +292,87 @@ describe('On-Chain Solidity Smart Contracts Hardening & Deployment Pipeline', ()
       expect(aragonPayload.framework).toBe(DAO_FRAMEWORKS.ARAGON_OSX);
       expect(aragonPayload.contractMethod).toBe('executeProposalHook');
       expect(aragonPayload.targetDao).toBe('0xAragonDaoAddress456');
+
+      // Test EnDAOsment mode
+      dao.setParentFramework(DAO_FRAMEWORKS.ENDAOSMENT, '0xGovernorGeneralProxy789');
+      const endaosmentPayload = dao.formatFrameworkDispatchPayload(prop.proposalId, '0xTargetProtocol', 0, '0xfeedbeef');
+      expect(endaosmentPayload.framework).toBe(DAO_FRAMEWORKS.ENDAOSMENT);
+      expect(endaosmentPayload.contractMethod).toBe('execute');
+      expect(endaosmentPayload.targetDao).toBe('0xGovernorGeneralProxy789');
+  });
+
+  it('validates EnDAOsment two-stage governance (Approval stage 1 + Quadratic stage 2)', async () => {
+    const { DaoRegistry, DAO_FRAMEWORKS, ENDAOSMENT_STAGES, calculateQuadraticVotes } = await import('../src/governance/daoRegistry.js');
+    const dao = new DaoRegistry();
+    dao.setParentFramework(DAO_FRAMEWORKS.ENDAOSMENT, '0xGovernorGeneralProxy789');
+
+    // Register members across epistemic tiers
+    const sage = dao.registerEpistemicMember('did:pkh:1:alice', { factuality: 100, bridging: 100, steelManning: 100, toxicity: 0 }); // TIER_4_SAGE: weight 30
+    const novice = dao.registerEpistemicMember('did:pkh:1:bob', { factuality: 40, bridging: 40, steelManning: 30, toxicity: 0 }); // TIER_1_NOVICE: weight 1
+
+    expect(sage.tierKey).toBe('TIER_4_SAGE');
+    expect(dao.getEpistemicVotingWeight('did:pkh:1:alice')).toBe(30);
+    expect(dao.getQuadraticCreditBudget('did:pkh:1:alice')).toBe(3000); // 30 * 100 = 3000
+
+    expect(novice.tierKey).toBe('TIER_1_NOVICE');
+    expect(dao.getEpistemicVotingWeight('did:pkh:1:bob')).toBe(1);
+    expect(dao.getQuadraticCreditBudget('did:pkh:1:bob')).toBe(100); // 1 * 100 = 100
+
+    // Quadratic math formula verification: V = floor(sqrt(C))
+    expect(calculateQuadraticVotes(0)).toBe(0);
+    expect(calculateQuadraticVotes(100)).toBe(10);
+    expect(calculateQuadraticVotes(400)).toBe(20);
+    expect(calculateQuadraticVotes(2500)).toBe(50);
+    expect(calculateQuadraticVotes(3000)).toBe(54);
+
+    // Create EnDAOsment proposal
+    const prop = dao.createProposal({
+      title: 'EIP-15: Allocate 50,000 USDC from Timelock Treasury for Fact-Checking Oracle Subsidies',
+      description: 'ipfs://bafkreiendosmentstage1',
+      proposerDid: 'did:pkh:1:alice',
+      quorumRequired: 25
+    });
+
+    expect(prop.framework).toBe(DAO_FRAMEWORKS.ENDAOSMENT);
+    expect(prop.stage).toBe(ENDAOSMENT_STAGES.STAGE_1_APPROVAL);
+
+    // Stage 1: Approval Voting
+    // Alice votes FOR (+30 weight)
+    const aliceVote = dao.castStage1ApprovalVote(prop.proposalId, 'did:pkh:1:alice', true);
+    expect(aliceVote.weight).toBe(30);
+    expect(prop.stage1ApprovalVotes.for).toBe(30);
+
+    // Duplicate vote in Stage 1 is rejected
+    expect(() => dao.castStage1ApprovalVote(prop.proposalId, 'did:pkh:1:alice', true)).toThrow(/already cast/i);
+
+    // Advance Stage 1 -> Stage 2 (Quorum met: 30 >= 25)
+    const advanceResult = dao.advanceProposalStage(prop.proposalId);
+    expect(advanceResult.passed).toBe(true);
+    expect(advanceResult.stage).toBe(ENDAOSMENT_STAGES.STAGE_2_QUADRATIC);
+    expect(prop.stage).toBe(ENDAOSMENT_STAGES.STAGE_2_QUADRATIC);
+
+    // Stage 2: Quadratic Voting
+    // Alice spends 400 credits -> floor(sqrt(400)) = 20 votes
+    const quadVoteAlice = dao.castStage2QuadraticVote(prop.proposalId, 'did:pkh:1:alice', true, 400);
+    expect(quadVoteAlice.votesCast).toBe(20);
+    expect(prop.stage2QuadraticVotes.for).toBe(20);
+    expect(prop.stage2QuadraticVotes.totalCreditsSpent).toBe(400);
+
+    // Bob (Novice: 100 credits) spends 100 credits -> floor(sqrt(100)) = 10 votes
+    const quadVoteBob = dao.castStage2QuadraticVote(prop.proposalId, 'did:pkh:1:bob', true, 100);
+    expect(quadVoteBob.votesCast).toBe(10);
+    expect(prop.stage2QuadraticVotes.for).toBe(30);
+
+    // Bob tries to spend another 50 credits -> exceeds budget (100 + 50 > 100)
+    expect(() => dao.castStage2QuadraticVote(prop.proposalId, 'did:pkh:1:bob', true, 50)).toThrow(/insufficient quadratic voting credits/i);
+
+    // Advance Stage 2 -> Succeeded
+    const finalResult = dao.advanceProposalStage(prop.proposalId);
+    expect(finalResult.passed).toBe(true);
+    expect(finalResult.stage).toBe(ENDAOSMENT_STAGES.SUCCEEDED);
+    expect(prop.status).toBe('PASSED');
   });
 });
+
 
 

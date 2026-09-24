@@ -15,7 +15,7 @@ import "./interfaces/IDAOFrameworks.sol";
 contract EpistemicGovernor is Initializable, UUPSUpgradeable, IGovernorStandard {
     enum EpistemicTier { NOVICE, CONTRIBUTOR, ARBITER, SAGE }
     enum ProposalStatus { PENDING, ACTIVE, EXECUTED, DEFEATED }
-    enum ParentFramework { STANDALONE, OPENZEPPELIN_GOVERNOR, ARAGON_OSX, ZODIAC_SAFE, COMPOUND_BRAVO }
+    enum ParentFramework { STANDALONE, OPENZEPPELIN_GOVERNOR, ARAGON_OSX, ZODIAC_SAFE, COMPOUND_BRAVO, ENDAOSMENT }
 
     struct Proposal {
         bytes32 proposalId;
@@ -290,7 +290,7 @@ contract EpistemicGovernor is Initializable, UUPSUpgradeable, IGovernorStandard 
             if (!success) revert FrameworkExecutionFailed();
             emit ProposalForwardedToParent(proposalId, parentDAO, parentFramework, data);
             return true;
-        } else if ((parentFramework == ParentFramework.OPENZEPPELIN_GOVERNOR || parentFramework == ParentFramework.COMPOUND_BRAVO) && parentDAO != address(0)) {
+        } else if ((parentFramework == ParentFramework.OPENZEPPELIN_GOVERNOR || parentFramework == ParentFramework.COMPOUND_BRAVO || parentFramework == ParentFramework.ENDAOSMENT) && parentDAO != address(0)) {
             (bool success, ) = parentDAO.call{value: value}(data);
             if (!success) revert FrameworkExecutionFailed();
             emit ProposalForwardedToParent(proposalId, parentDAO, parentFramework, data);

@@ -67,3 +67,41 @@ interface ITimelockController {
         bytes32 salt
     ) external payable;
 }
+
+interface IEnDAOsmentGovernorGeneral {
+    enum ProposalStage {
+        Pending,
+        Approval,
+        Quadratic,
+        Succeeded,
+        Queued,
+        Executed,
+        Defeated,
+        Canceled
+    }
+
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    ) external returns (uint256);
+
+    function castApprovalVote(
+        uint256 proposalId,
+        uint8 support,
+        uint256 tokenId
+    ) external returns (uint256);
+
+    function castQuadraticVote(
+        uint256 proposalId,
+        uint8 support,
+        uint256 creditsToSpend,
+        uint256 tokenId
+    ) external returns (uint256);
+
+    function advanceToQuadratic(uint256 proposalId) external;
+    function finalizeQuadratic(uint256 proposalId) external;
+    function state(uint256 proposalId) external view returns (ProposalStage);
+}
+

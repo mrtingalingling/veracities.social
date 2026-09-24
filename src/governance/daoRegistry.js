@@ -10,8 +10,24 @@ export const DAO_FRAMEWORKS = {
   OPENZEPPELIN_GOVERNOR: 'OPENZEPPELIN_GOVERNOR',
   ARAGON_OSX: 'ARAGON_OSX',
   ZODIAC_SAFE: 'ZODIAC_SAFE',
-  COMPOUND_BRAVO: 'COMPOUND_BRAVO'
+  COMPOUND_BRAVO: 'COMPOUND_BRAVO',
+  ENDAOSMENT: 'ENDAOSMENT'
 };
+
+export const ENDAOSMENT_STAGES = {
+  STAGE_1_APPROVAL: 'STAGE_1_APPROVAL',
+  STAGE_2_QUADRATIC: 'STAGE_2_QUADRATIC',
+  SUCCEEDED: 'SUCCEEDED',
+  QUEUED: 'QUEUED',
+  EXECUTED: 'EXECUTED',
+  DEFEATED: 'DEFEATED'
+};
+
+export function calculateQuadraticVotes(credits) {
+  if (!credits || credits <= 0) return 0;
+  return Math.floor(Math.sqrt(credits));
+}
+
 
 export class DaoRegistry {
   constructor() {
@@ -87,6 +103,14 @@ export class DaoRegistry {
       minTierRequired,
       usedNullifiers: new Set() // Tracks Semaphore nullifier hashes to prevent double-voting
     };
+
+    if (this.parentFramework === DAO_FRAMEWORKS.ENDAOSMENT) {
+      proposal.framework = DAO_FRAMEWORKS.ENDAOSMENT;
+      proposal.stage = ENDAOSMENT_STAGES.STAGE_1_APPROVAL;
+      proposal.stage1ApprovalVotes = { for: 0, against: 0, totalWeight: 0 };
+      proposal.stage2QuadraticVotes = { for: 0, against: 0, totalVotes: 0, totalCreditsSpent: 0 };
+      proposal.spentCreditsPerMember = new Map();
+    }
 
     this.proposals.set(proposalId, proposal);
     this.votes.set(proposalId, []);
@@ -260,6 +284,19 @@ export class DaoRegistry {
           },
           targetDao: this.parentDaoAddress
         };
+      case DAO_FRAMEWORKS.ENDAOSMENT:
+        return {
+          framework: DAO_FRAMEWORKS.ENDAOSMENT,
+          contractMethod: 'execute',
+          params: {
+            proposalId,
+            target,
+            value,
+            data,
+            descriptionHash: proposal.descriptionHash || '0x'
+          },
+          targetDao: this.parentDaoAddress
+        };
       default:
         return {
           framework: DAO_FRAMEWORKS.STANDALONE,
@@ -269,6 +306,158 @@ export class DaoRegistry {
         };
     }
   }
+
+  getEpistemicVotingWeight(voterDid) {
+    const member = this.members.get(voterDid);
+    if (!member) return 1;
+    if (typeof member === 'object' && member !== null) {
+      if (member.votingPower) return member.votingPower;
+      if (member.tierKey && EPISTEMIC_TIERS[member.tierKey]) {
+        return EPISTEMIC_TIERS[member.tierKey].votingPower || 1;
+      }
+      return 1;
+    }
+    return typeof member === 'number' ? member : 1;
+  }
+
+  getQuadraticCreditBudget(voterDid) {
+    const weight = this.getEpistemicVotingWeight(voterDid);
+    // Epistemic weight maps to credit budget: 1 unit = 100 quadratic credits
+    return weight * 100;
+  }
+
+  castStage1ApprovalVote(proposalId, voterDid, support = true) {
+    if (!this.proposals.has(proposalId)) throw new Error(`Proposal not found: ${proposalId}`);
+    const proposal = this.proposals.get(proposalId);
+    if (proposal.stage && proposal.stage !== ENDAOSMENT_STAGES.STAGE_1_APPROVAL) {
+      throw new Error(`Proposal is not in Stage 1 Approval (current stage: ${proposal.stage})`);
+    }
+
+    const weight = this.getEpistemicVotingWeight(voterDid);
+    const existingVotes = this.votes.get(proposalId) || [];
+    if (existingVotes.some(v => v.voterDid === voterDid && v.stage === ENDAOSMENT_STAGES.STAGE_1_APPROVAL)) {
+      throw new Error(`Member ${voterDid} has already cast Stage 1 vote`);
+    }
+
+    if (!proposal.stage1ApprovalVotes) {
+      proposal.stage1ApprovalVotes = { for: 0, against: 0, totalWeight: 0 };
+    }
+
+    if (support) {
+      proposal.stage1ApprovalVotes.for += weight;
+      proposal.votesFor += weight;
+    } else {
+      proposal.stage1ApprovalVotes.against += weight;
+      proposal.votesAgainst += weight;
+    }
+    proposal.stage1ApprovalVotes.totalWeight += weight;
+
+    const voteRecord = {
+      proposalId,
+      voterDid,
+      stage: ENDAOSMENT_STAGES.STAGE_1_APPROVAL,
+      support,
+      weight,
+      timestamp: Date.now()
+    };
+    existingVotes.push(voteRecord);
+    this.votes.set(proposalId, existingVotes);
+    return voteRecord;
+  }
+
+  advanceProposalStage(proposalId) {
+    if (!this.proposals.has(proposalId)) throw new Error(`Proposal not found: ${proposalId}`);
+    const proposal = this.proposals.get(proposalId);
+
+    if (proposal.stage === ENDAOSMENT_STAGES.STAGE_1_APPROVAL) {
+      const approval = proposal.stage1ApprovalVotes || { for: 0, against: 0, totalWeight: 0 };
+      const quorumMet = approval.totalWeight >= (proposal.quorumRequired || 20);
+      const passed = quorumMet && approval.for > approval.against;
+
+      if (passed) {
+        proposal.stage = ENDAOSMENT_STAGES.STAGE_2_QUADRATIC;
+        return { proposalId, stage: proposal.stage, passed: true };
+      } else {
+        proposal.stage = ENDAOSMENT_STAGES.DEFEATED;
+        proposal.status = 'DEFEATED';
+        return {
+          proposalId,
+          stage: proposal.stage,
+          passed: false,
+          reason: quorumMet ? 'More against votes than for' : 'Quorum not reached'
+        };
+      }
+    } else if (proposal.stage === ENDAOSMENT_STAGES.STAGE_2_QUADRATIC) {
+      const quad = proposal.stage2QuadraticVotes || { for: 0, against: 0, totalVotes: 0 };
+      const quorumMet = quad.totalVotes >= (proposal.quorumRequired ? Math.floor(proposal.quorumRequired / 2) : 10);
+      const passed = quorumMet && quad.for > quad.against;
+
+      if (passed) {
+        proposal.stage = ENDAOSMENT_STAGES.SUCCEEDED;
+        proposal.status = 'PASSED';
+        return { proposalId, stage: proposal.stage, passed: true };
+      } else {
+        proposal.stage = ENDAOSMENT_STAGES.DEFEATED;
+        proposal.status = 'DEFEATED';
+        return { proposalId, stage: proposal.stage, passed: false };
+      }
+    }
+
+    throw new Error(`Cannot advance proposal in stage: ${proposal.stage}`);
+  }
+
+  castStage2QuadraticVote(proposalId, voterDid, support = true, creditsToSpend = 100) {
+    if (!this.proposals.has(proposalId)) throw new Error(`Proposal not found: ${proposalId}`);
+    const proposal = this.proposals.get(proposalId);
+    if (proposal.stage !== ENDAOSMENT_STAGES.STAGE_2_QUADRATIC) {
+      throw new Error(`Proposal is not in Stage 2 Quadratic (current stage: ${proposal.stage})`);
+    }
+
+    const budget = this.getQuadraticCreditBudget(voterDid);
+    if (!proposal.spentCreditsPerMember) {
+      proposal.spentCreditsPerMember = new Map();
+    }
+    const alreadySpent = proposal.spentCreditsPerMember.get(voterDid) || 0;
+    if (alreadySpent + creditsToSpend > budget) {
+      throw new Error(`Insufficient quadratic voting credits: budget=${budget}, alreadySpent=${alreadySpent}, requested=${creditsToSpend}`);
+    }
+
+    const votesCast = calculateQuadraticVotes(creditsToSpend);
+    if (votesCast <= 0) {
+      throw new Error('Must spend at least 1 credit to cast a quadratic vote');
+    }
+
+    proposal.spentCreditsPerMember.set(voterDid, alreadySpent + creditsToSpend);
+
+    if (!proposal.stage2QuadraticVotes) {
+      proposal.stage2QuadraticVotes = { for: 0, against: 0, totalVotes: 0, totalCreditsSpent: 0 };
+    }
+
+    if (support) {
+      proposal.stage2QuadraticVotes.for += votesCast;
+    } else {
+      proposal.stage2QuadraticVotes.against += votesCast;
+    }
+    proposal.stage2QuadraticVotes.totalVotes += votesCast;
+    proposal.stage2QuadraticVotes.totalCreditsSpent += creditsToSpend;
+
+    const voteRecord = {
+      proposalId,
+      voterDid,
+      stage: ENDAOSMENT_STAGES.STAGE_2_QUADRATIC,
+      support,
+      creditsToSpend,
+      votesCast,
+      timestamp: Date.now()
+    };
+
+    const existingVotes = this.votes.get(proposalId) || [];
+    existingVotes.push(voteRecord);
+    this.votes.set(proposalId, existingVotes);
+
+    return voteRecord;
+  }
+
 
   getUpgradeabilityInfo() {
     return {
