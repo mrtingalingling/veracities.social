@@ -15,15 +15,17 @@ async function deploy() {
   const marketArtifactPath = path.join(buildDir, 'ValidationMarket.json');
   const escrowArtifactPath = path.join(buildDir, 'CourtroomEscrow.json');
   const govArtifactPath = path.join(buildDir, 'EpistemicGovernor.json');
+  const crsArtifactPath = path.join(buildDir, 'EpistemicCrsManager.json');
   const proxyArtifactPath = path.join(buildDir, 'ERC1967Proxy.json');
 
-  if (!fs.existsSync(marketArtifactPath) || !fs.existsSync(escrowArtifactPath) || !fs.existsSync(govArtifactPath) || !fs.existsSync(proxyArtifactPath)) {
+  if (!fs.existsSync(marketArtifactPath) || !fs.existsSync(escrowArtifactPath) || !fs.existsSync(govArtifactPath) || !fs.existsSync(crsArtifactPath) || !fs.existsSync(proxyArtifactPath)) {
     throw new Error('Build artifacts missing! Run "node scripts/compileContracts.js" first.');
   }
 
   const marketArtifact = JSON.parse(fs.readFileSync(marketArtifactPath, 'utf8'));
   const escrowArtifact = JSON.parse(fs.readFileSync(escrowArtifactPath, 'utf8'));
   const govArtifact = JSON.parse(fs.readFileSync(govArtifactPath, 'utf8'));
+  const crsArtifact = JSON.parse(fs.readFileSync(crsArtifactPath, 'utf8'));
   const proxyArtifact = JSON.parse(fs.readFileSync(proxyArtifactPath, 'utf8'));
 
   let chainId = 84532; // Default: Base Sepolia
@@ -34,6 +36,8 @@ async function deploy() {
   let escrowImplAddress = '';
   let govProxyAddress = '';
   let govImplAddress = '';
+  let crsProxyAddress = '';
+  let crsImplAddress = '';
   let deployerAddress = '';
   let treasuryAddress = process.env.PROTOCOL_TREASURY_ADDRESS || '0x1111111111111111111111111111111111111111';
   let oracleAddress = process.env.ORACLE_SIGNER_ADDRESS || '0x2222222222222222222222222222222222222222';
@@ -43,6 +47,7 @@ async function deploy() {
   const marketInterface = new ethers.Interface(marketArtifact.abi);
   const escrowInterface = new ethers.Interface(escrowArtifact.abi);
   const govInterface = new ethers.Interface(govArtifact.abi);
+  const crsInterface = new ethers.Interface(crsArtifact.abi);
 
   if (!isSimulation && process.env.RPC_URL && process.env.DEPLOYER_PRIVATE_KEY) {
     const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -90,6 +95,18 @@ async function deploy() {
     await govProxy.waitForDeployment();
     govProxyAddress = await govProxy.getAddress();
     console.log(`[Deployer] EpistemicGovernor Proxy: ${govProxyAddress} (Impl: ${govImplAddress})`);
+
+    // Deploy EpistemicCrsManager implementation + ERC1967Proxy
+    const CrsFactory = new ethers.ContractFactory(crsArtifact.abi, crsArtifact.bytecode, wallet);
+    const crsImpl = await CrsFactory.deploy();
+    await crsImpl.waitForDeployment();
+    crsImplAddress = await crsImpl.getAddress();
+
+    const crsInitData = crsInterface.encodeFunctionData('initialize', [deployerAddress, oracleAddress]);
+    const crsProxy = await ProxyFactory.deploy(crsImplAddress, crsInitData);
+    await crsProxy.waitForDeployment();
+    crsProxyAddress = await crsProxy.getAddress();
+    console.log(`[Deployer] EpistemicCrsManager Proxy: ${crsProxyAddress} (Impl: ${crsImplAddress})`);
   } else {
     // Deterministic simulation deployment
     const randomDeployer = ethers.Wallet.createRandom();
@@ -100,8 +117,10 @@ async function deploy() {
     escrowProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 3 });
     govImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 4 });
     govProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 5 });
+    crsImplAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 6 });
+    crsProxyAddress = ethers.getCreateAddress({ from: deployerAddress, nonce: 7 });
 
-    console.log(`[Deployer] Simulation Upgradeable Addresses:\n  - Deployer: ${deployerAddress}\n  - ValidationMarket: ${marketProxyAddress} (Impl: ${marketImplAddress})\n  - CourtroomEscrow: ${escrowProxyAddress} (Impl: ${escrowImplAddress})\n  - EpistemicGovernor: ${govProxyAddress} (Impl: ${govImplAddress})`);
+    console.log(`[Deployer] Simulation Upgradeable Addresses:\n  - Deployer: ${deployerAddress}\n  - ValidationMarket: ${marketProxyAddress} (Impl: ${marketImplAddress})\n  - CourtroomEscrow: ${escrowProxyAddress} (Impl: ${escrowImplAddress})\n  - EpistemicGovernor: ${govProxyAddress} (Impl: ${govImplAddress})\n  - EpistemicCrsManager: ${crsProxyAddress} (Impl: ${crsImplAddress})`);
   }
 
   // 2. Prepare JSON configuration export
@@ -135,6 +154,13 @@ async function deploy() {
         proxyType: 'ERC1967',
         parentFramework: 'STANDALONE',
         abi: govArtifact.abi
+      },
+      EpistemicCrsManager: {
+        address: crsProxyAddress,
+        implementation: crsImplAddress,
+        isUpgradeable: true,
+        proxyType: 'ERC1967',
+        abi: crsArtifact.abi
       },
       ERC1967Proxy: {
         abi: proxyArtifact.abi

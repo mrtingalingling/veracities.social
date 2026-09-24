@@ -61,7 +61,7 @@ graph TD
 - **EnDAOsment Framework Adapter**: Dispatches execution payloads to EnDAOsment's `GovernorGeneral` and `TimelockController`.
 
 #### 2.3.1 How We Leverage the EnDAOsment Framework
-1. **Checkpointed Epistemic CRS**: `EpistemicCrsManager.sol` implements `ICrsManager` using OpenZeppelin `Checkpoints.Trace208`, mapping Epistemic Tiers (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage Elder: 3,000) to historical block-level snapshots. This eliminates flash-loan / flash-reputation exploits.
+1. **Checkpointed Epistemic CRS**: Vera's custom `contracts/EpistemicCrsManager.sol` (contained entirely within `veracities.social` without modifying upstream framework repositories) implements `ICrsManager` with historical block-level snapshots, mapping Epistemic Tiers (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage Elder: 3,000) to voting power. This eliminates flash-loan / flash-reputation exploits.
 2. **Two-Stage Deliberation Pipeline**:
    - **Stage 1 (Epistemic Approval)**: Qualitative truth and platform safety vetting by high-tier Sages and Arbiters via `ApprovalGovernor.sol`.
    - **Stage 2 (Quadratic Voting)**: Resource allocation and rule changes where citizen votes scale quadratically as $V = \lfloor\sqrt{C}\rfloor$ ($C = V^2$) from credit budgets.
@@ -71,7 +71,7 @@ graph TD
 #### 2.3.2 What Happens if the Framework Updates
 1. **Zero Data Loss via UUPS Storage Decoupling**: All contracts run behind independent ERC-1967 proxies with reserved storage gaps (`uint256[45..48] private __gap;`). Upgrading framework implementations does not affect or erase member badges, proposal records, or CRS checkpoints.
 2. **Interface Compatibility & Dynamic Reconfiguration**: Non-breaking framework updates require zero adjustments. Breaking interface changes can be dynamically reconfigured via `configureParentDAO(ParentFramework.ENDAOSMENT, newAddress)` or adapted via a zero-downtime UUPS proxy upgrade on `EpistemicGovernor.sol`.
-3. **Autonomous Reputation Heuristics**: The Epistemic Quotient ($EQ$) formula lives strictly inside Vera's `EpistemicCrsManager.sol`. Framework updates cannot alter Vera's reputation scoring.
+3. **Autonomous Reputation Heuristics**: The Epistemic Quotient ($EQ$) formula lives strictly inside Vera's `contracts/EpistemicCrsManager.sol`. Framework updates cannot alter Vera's reputation scoring.
 4. **Modular Fallback**: If the framework pauses or fails, `EpistemicGovernor.sol` falls back to standalone execution or alternative adapters (OpenZeppelin, Gnosis Safe Zodiac, Aragon OSx).
 
 ### 2.4 Courtroom Settlement & Oracle Relayer (`src/settlement/`, `src/oracle/`)
@@ -83,6 +83,7 @@ graph TD
 - **`ValidationMarket.sol`**: UUPS / ERC-1967 upgradeable prediction market managing pools, dynamic odds, dynamic EIP-712 domain separator, losing pool slashing waterfall, and settlement.
 - **`CourtroomEscrow.sol`**: UUPS / ERC-1967 upgradeable escrow governing 14-day cold case refunds (94%/6%) and challenge retrial bonds.
 - **`EpistemicGovernor.sol`**: UUPS / ERC-1967 upgradeable quadratic tier-weighted governance contract with Semaphore ZK double-voting prevention and modular DAO framework adapters (OpenZeppelin Governor, Gnosis Safe Zodiac module, Aragon OSx plugin, EnDAOsment GovernorGeneral).
+- **`EpistemicCrsManager.sol`**: UUPS / ERC-1967 upgradeable reputation manager implementing `ICrsManager` with historical block-level snapshots (`Checkpoints`), mapping Epistemic Tiers (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage: 3,000 credits) to snapshot voting power and quadratic credit budgets.
 - **`proxy/`**: Canonical `ERC1967Proxy.sol`, `Initializable.sol`, and `UUPSUpgradeable.sol` providing atomic proxy initialization and upgrade authorization.
 - Compiled with Solc 0.8.20 optimizer (200 runs), artifacts exported to `src/config/contracts.json`.
 

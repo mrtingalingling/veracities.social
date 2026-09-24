@@ -59,8 +59,9 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 `veracities.social` adapts the [**`DAO-Smart-Contract-Framework`**](https://github.com/mrtingalingling/DAO-Smart-Contract-Framework) for non-plutocratic Layer 3 governance:
 
 ### 3.1 How We Leverage the Framework
-1. **Checkpointed Epistemic CRS (`EpistemicCrsManager.sol`)**:
-   - Implements `ICrsManager` using OpenZeppelin `Checkpoints.Trace208`, mapping Epistemic Tiers into snapshotted voting power and credit budgets (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage Elder: 3,000 credits).
+1. **Checkpointed Epistemic CRS (`contracts/EpistemicCrsManager.sol`)**:
+   - Implemented and maintained directly within `veracities.social` (keeping the upstream `DAO-Smart-Contract-Framework` untouched).
+   - Implements `ICrsManager` using historical block-level snapshots, mapping Epistemic Tiers into snapshotted voting power and credit budgets (Novice: 100, Contributor: 500, Arbiter: 1,500, Sage Elder: 3,000 credits).
    - Historical block-level checkpoints (`getPastCrs`) prevent flash-loan attacks and retroactive reputation manipulation.
 2. **Two-Stage Deliberation Pipeline**:
    - **Stage 1 (Epistemic Approval Vetting)**: Proposals are vetted by high-tier Sages and Arbiters via `ApprovalGovernor.sol` based on qualitative truth and platform safety merits.
@@ -73,7 +74,7 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 2. **Backward-Compatible vs. Breaking Interface Evolution**:
    - Non-breaking updates (optimizations, internal bug fixes) operate seamlessly over existing ABIs.
    - Breaking interface changes can be dynamically reconfigured via `configureParentDAO(ParentFramework.ENDAOSMENT, newAddress)` or adapted via a zero-downtime UUPS proxy upgrade on `EpistemicGovernor.sol`.
-3. **Autonomous Epistemic Heuristics**: The multi-dimensional Epistemic Quotient ($EQ$) formula and credit scaling reside entirely within `EpistemicCrsManager.sol`, ensuring Vera's reputation rules remain independent of upstream framework updates.
+3. **Autonomous Epistemic Heuristics**: The multi-dimensional Epistemic Quotient ($EQ$) formula and credit scaling reside entirely within Vera's `contracts/EpistemicCrsManager.sol` (within `veracities.social`), ensuring Vera's reputation rules remain independent of upstream framework updates.
 4. **Modular Fallback Redundancy**: If the framework pauses or fails, `EpistemicGovernor.sol` falls back to standalone execution or alternative adapters (`IGovernorStandard`, `IZodiacModule`, `IAragonPlugin`).
 
 ---

@@ -105,3 +105,9 @@ interface IEnDAOsmentGovernorGeneral {
     function state(uint256 proposalId) external view returns (ProposalStage);
 }
 
+interface ICrsManager {
+    function getCrs(address account, uint256 tokenId) external view returns (uint256);
+    function getPastCrs(address account, uint256 tokenId, uint256 timepoint) external view returns (uint256);
+}
+
+

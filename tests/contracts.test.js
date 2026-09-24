@@ -372,7 +372,44 @@ describe('On-Chain Solidity Smart Contracts Hardening & Deployment Pipeline', ()
     expect(finalResult.stage).toBe(ENDAOSMENT_STAGES.SUCCEEDED);
     expect(prop.status).toBe('PASSED');
   });
+
+  it('compiles and validates EpistemicCrsManager (ICrsManager) artifact and tier mechanics', () => {
+    const crsArtifact = JSON.parse(fs.readFileSync(path.join(buildDir, 'EpistemicCrsManager.json'), 'utf8'));
+    expect(crsArtifact.contractName).toBe('EpistemicCrsManager');
+    expect(crsArtifact.bytecode.startsWith('0x60')).toBe(true);
+
+    const fnNames = crsArtifact.abi.filter(item => item.type === 'function').map(item => item.name);
+    expect(fnNames).toContain('tierToCrs');
+    expect(fnNames).toContain('setEpistemicTier');
+    expect(fnNames).toContain('setRawCrs');
+    expect(fnNames).toContain('batchSetEpistemicTiers');
+    expect(fnNames).toContain('getCrs');
+    expect(fnNames).toContain('getPastCrs');
+    expect(fnNames).toContain('clock');
+    expect(fnNames).toContain('upgradeToAndCall');
+
+    // Verify mathematical tier-to-credits conversion
+    const parseEther = (val) => BigInt(val) * 10n ** 18n;
+    const crsToCredits = (crsWei) => Number(crsWei / (10n ** 16n));
+
+    const sageCrs = parseEther(30);
+    const arbiterCrs = parseEther(15);
+    const contributorCrs = parseEther(5);
+    const noviceCrs = parseEther(1);
+
+    expect(crsToCredits(sageCrs)).toBe(3000);
+    expect(crsToCredits(arbiterCrs)).toBe(1500);
+    expect(crsToCredits(contributorCrs)).toBe(500);
+    expect(crsToCredits(noviceCrs)).toBe(100);
+
+    // Verify contracts.json has EpistemicCrsManager
+    const contractsConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/config/contracts.json'), 'utf8'));
+    expect(contractsConfig.contracts.EpistemicCrsManager).toBeDefined();
+    expect(contractsConfig.contracts.EpistemicCrsManager.isUpgradeable).toBe(true);
+    expect(contractsConfig.contracts.EpistemicCrsManager.proxyType).toBe('ERC1967');
+  });
 });
+
 
 
 

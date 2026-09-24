@@ -48,6 +48,9 @@ const sources = {
   },
   'EpistemicGovernor.sol': {
     content: fs.readFileSync(path.join(contractsDir, 'EpistemicGovernor.sol'), 'utf8')
+  },
+  'EpistemicCrsManager.sol': {
+    content: fs.readFileSync(path.join(contractsDir, 'EpistemicCrsManager.sol'), 'utf8')
   }
 };
 

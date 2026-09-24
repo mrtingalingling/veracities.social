@@ -1,15 +1,15 @@
 {
   "network": "base-sepolia",
   "chainId": 84532,
-  "deployedAt": "2026-09-24T01:42:55.727Z",
-  "deployer": "0xfCBC162b6037d07125BDCb17Cfb1783D8920463D",
+  "deployedAt": "2026-09-24T02:16:42.481Z",
+  "deployer": "0x7D5BaA7f469198B2a3B4944336c653279c5e2e5F",
   "protocolTreasury": "0x1111111111111111111111111111111111111111",
   "oracleSigner": "0x2222222222222222222222222222222222222222",
   "proxyPattern": "UUPS / ERC-1967",
   "contracts": {
     "ValidationMarket": {
-      "address": "0xF8EdDE3A4D09e553E13FA7ad87618E9f7cBBF3a4",
-      "implementation": "0x369c47eDF6194476029e9347e3F45c8726bE913d",
+      "address": "0x3E672Bc4F144d724f16FEb96e7DE4c9f26aD4fa4",
+      "implementation": "0x5C6D636A426043bd1fcFDc1E58f749Bb3141f3F3",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "abi": [
@@ -829,8 +829,8 @@
       ]
     },
     "CourtroomEscrow": {
-      "address": "0x501d4901ef9621762144f0925625E6C1907eD7f5",
-      "implementation": "0x3d74A53140af653D54293b1259e173648364804a",
+      "address": "0x0017764e73C90C0Ea716f36661638E59744ea1cF",
+      "implementation": "0x39e763FdB9BB9D629748E9EF3ea133A1dA39C3D7",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "abi": [
@@ -1408,8 +1408,8 @@
       ]
     },
     "EpistemicGovernor": {
-      "address": "0x2bCE7BD8fF6f2Af776ed1D04C42EbD9Df1c0c6e8",
-      "implementation": "0x795f99379172113631f357491AB2e1B88CBeCE22",
+      "address": "0x1Fb967f035bE78F6d22fCfAc311b4C6bc6195b63",
+      "implementation": "0x8cEb4091B44A7b8ADABCeD0C431E510c59566A68",
       "isUpgradeable": true,
       "proxyType": "ERC1967",
       "parentFramework": "STANDALONE",
@@ -2270,6 +2270,504 @@
           "name": "voteAnonymous",
           "outputs": [],
           "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ]
+    },
+    "EpistemicCrsManager": {
+      "address": "0x210533324C030B36A9b2F688445e8BCfAf4B5572",
+      "implementation": "0x6beb594A84a278739d64a484580911F3c3e48451",
+      "isUpgradeable": true,
+      "proxyType": "ERC1967",
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationNotAContract",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ImplementationZeroAddress",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidInitialization",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "MismatchedArrays",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NotInitializing",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "Unauthorized",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UpgradeCallFailed",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ZeroAddress",
+          "type": "error"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "crsScore",
+              "type": "uint256"
+            }
+          ],
+          "name": "CrsScoreUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "enum EpistemicCrsManager.EpistemicTier",
+              "name": "tier",
+              "type": "uint8"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "crsScore",
+              "type": "uint256"
+            }
+          ],
+          "name": "EpistemicTierUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint64",
+              "name": "version",
+              "type": "uint64"
+            }
+          ],
+          "name": "Initialized",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOracle",
+              "type": "address"
+            }
+          ],
+          "name": "OracleUpdated",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "implementation",
+              "type": "address"
+            }
+          ],
+          "name": "Upgraded",
+          "type": "event"
+        },
+        {
+          "inputs": [],
+          "name": "ARBITER_CRS",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "CONTRIBUTOR_CRS",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "NOVICE_CRS",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "SAGE_CRS",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address[]",
+              "name": "accounts",
+              "type": "address[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum EpistemicCrsManager.EpistemicTier[]",
+              "name": "tiers",
+              "type": "uint8[]"
+            }
+          ],
+          "name": "batchSetEpistemicTiers",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "clock",
+          "outputs": [
+            {
+              "internalType": "uint48",
+              "name": "",
+              "type": "uint48"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            }
+          ],
+          "name": "getCrs",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "timepoint",
+              "type": "uint256"
+            }
+          ],
+          "name": "getPastCrs",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "defaultAdmin",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "_oracle",
+              "type": "address"
+            }
+          ],
+          "name": "initialize",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "memberTiers",
+          "outputs": [
+            {
+              "internalType": "enum EpistemicCrsManager.EpistemicTier",
+              "name": "",
+              "type": "uint8"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "oracle",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "owner",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "proxiableUUID",
+          "outputs": [
+            {
+              "internalType": "bytes32",
+              "name": "",
+              "type": "bytes32"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum EpistemicCrsManager.EpistemicTier",
+              "name": "tier",
+              "type": "uint8"
+            }
+          ],
+          "name": "setEpistemicTier",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newOracle",
+              "type": "address"
+            }
+          ],
+          "name": "setOracle",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "score",
+              "type": "uint256"
+            }
+          ],
+          "name": "setRawCrs",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "enum EpistemicCrsManager.EpistemicTier",
+              "name": "tier",
+              "type": "uint8"
+            }
+          ],
+          "name": "tierToCrs",
+          "outputs": [
+            {
+              "internalType": "uint256",
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "stateMutability": "pure",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "transferOwnership",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "newImplementation",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "name": "upgradeToAndCall",
+          "outputs": [],
+          "stateMutability": "payable",
           "type": "function"
         }
       ]
