@@ -1,7 +1,7 @@
 # veracities.social: Architecture Caveats & Implementation Status
 
 > **Canonical Document Reference**: The master, cross-repository architecture blueprint, deployment guide, and remaining caveats ledger is centralized in [**`vera/docs/ARCHITECTURE_CAVEATS_AND_ROADMAP.md`**](../../vera/docs/ARCHITECTURE_CAVEATS_AND_ROADMAP.md). Refer to that document for the unified ecosystem specification.
-> **Repository Test Health**: **92 / 92 Vitest Tests Passing (100% Green)** across 16 test suites.
+> **Repository Test Health**: **95 / 95 Vitest Tests Passing (100% Green)** across 16 test suites.
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## 2. Implemented Features & Verification Matrix
 
-All Layer 2 and Layer 3 features required by the PRD are fully implemented in `veracities.social` and verified with **92 passing tests**:
+All Layer 2 and Layer 3 features required by the PRD are fully implemented in `veracities.social` and verified with **95 passing tests**:
 
 - **Layer 2: Validation Prediction Markets (`src/market/`)**:
   - 4-outcome prediction pools (`VERIFIED`, `DISPUTED`, `MISINFORMED`, `NEED_CONTEXT`) with real-time dynamic odds.
@@ -39,10 +39,11 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 - **Layer 3: Epistemic DAO & ZK Ballots (`src/governance/`, `src/components/GovernanceView.svelte`)**:
   - Epistemic Passport inspection with quadratic tier multipliers (Novice: 1, Contributor: 5, Arbiter: 15, Sage Elder: 30).
   - Proposal creation, quorum progress meter, and client-side Semaphore ZK anonymous ballot flow.
-- **EVM Smart Contracts (`contracts/`)**:
-  - `ValidationMarket.sol`: Core prediction market and slashing contract with EIP-712 oracle settlement.
-  - `CourtroomEscrow.sol`: Cold case 14-day refunds and retrial challenge bonds.
-  - `EpistemicGovernor.sol`: Quadratic tier-weighted Semaphore ZK governance contract.
+- **EVM Smart Contracts & Upgradeability (`contracts/`, `contracts/proxy/`)**:
+  - `ValidationMarket.sol`: Core prediction market and slashing contract with EIP-712 oracle settlement and UUPS upgradeability (`UUPSUpgradeable`).
+  - `CourtroomEscrow.sol`: Cold case 14-day refunds and retrial challenge bonds with UUPS proxy support.
+  - `EpistemicGovernor.sol`: Quadratic tier-weighted Semaphore ZK governance contract with modular external DAO protocol interfaces (`IGovernorStandard`, `IZodiacModule`, `IAragonPlugin`).
+  - `ERC1967Proxy.sol`: Production standard ERC-1967 proxy contracts enabling zero-downtime implementation upgrades with isolated storage gaps.
   - All contracts compiled with Solc 0.8.20 optimizer (200 runs) with artifacts exported to `src/config/contracts.json`.
 - **Identity & Storage (`src/identity/`, `src/storage/`, `src/db/`)**:
   - ATProto Agent (`@atproto/api`), DID:PLC directory resolution, and custom Lexicons (`social.veracities.*`).
@@ -74,7 +75,7 @@ All Layer 2 and Layer 3 features required by the PRD are fully implemented in `v
 ## 4. Local Execution & Testing
 
 ```bash
-# Run unit and integration tests (16 suites, 92 tests)
+# Run unit and integration tests (16 suites, 95 tests)
 npm test
 
 # Compile Solidity smart contracts
