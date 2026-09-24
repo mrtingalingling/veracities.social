@@ -68,7 +68,7 @@ Detailed specification available in [**`docs/architecture.md`**](./docs/architec
 5. **EVM Smart Contracts (`contracts/`)**:
    - `ValidationMarket.sol`: UUPS / ERC-1967 upgradeable prediction market, dynamic domain separator, slashing waterfall, and EIP-712 settlement.
    - `CourtroomEscrow.sol`: UUPS / ERC-1967 upgradeable 14-day cold case escrow refunds and retrial bonds.
-   - `EpistemicGovernor.sol`: UUPS / ERC-1967 upgradeable Semaphore ZK anonymous governance with quadratic tier weights and modular DAO framework interoperability (OpenZeppelin Governor, Gnosis Safe / Zodiac, Aragon OSx).
+   - `EpistemicGovernor.sol`: UUPS / ERC-1967 upgradeable Semaphore ZK anonymous governance with quadratic tier weights and modular DAO framework interoperability (OpenZeppelin Governor, Gnosis Safe / Zodiac, Aragon OSx, EnDAOsment Framework).
    - `proxy/`: Canonical ERC-1967 delegating proxy (`ERC1967Proxy.sol`), initialization guard (`Initializable.sol`), and UUPS upgrade mechanism (`UUPSUpgradeable.sol`).
    - Compiled with Solc 0.8.20 optimizer (200 runs), artifacts exported to `src/config/contracts.json`.
 6. **Interactive Svelte 5 Interface**:
@@ -80,7 +80,7 @@ Detailed specification available in [**`docs/architecture.md`**](./docs/architec
 
 ```bash
 npm install
-npm test # Runs 95/95 passing Vitest tests across 16 suites
+npm test # Runs 96/96 passing Vitest tests across 16 suites
 npm run compile:contracts # Compiles Solidity contracts via Solc optimizer
 npm run dev # Starts local Svelte 5 dev server on port 5174
 ```

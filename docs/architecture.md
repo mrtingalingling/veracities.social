@@ -56,8 +56,9 @@ graph TD
 - **Slashing Waterfall**: 15% Whistleblower Evidence Bounty, 5% Juror Deliberation Fee, 5% Protocol Fee.
 
 ### 2.3 Epistemic DAO Registry Subsystem ("EnDAOsment") (`src/governance/`)
-- **DAO Registry (`daoRegistry.js`)**: Multi-dimensional Epistemic Quotient ($EQ$) formula, quadratic tier multipliers (1, 5, 15, 30), and quorum/consensus evaluation.
+- **DAO Registry (`daoRegistry.js`)**: Multi-dimensional Epistemic Quotient ($EQ$) formula, quadratic tier multipliers (1, 5, 15, 30), and two-stage proposal consensus (Stage 1 Approval + Stage 2 Quadratic Voting with individual credit budgets: $V = \lfloor\sqrt{C}\rfloor$).
 - **Semaphore ZK Identity Bridge (`zkSemaphoreBridge.js`)**: Anonymous quadratic voting using Semaphore zero-knowledge proofs and single-use nullifiers.
+- **EnDAOsment Framework Adapter**: Dispatches execution payloads to EnDAOsment's `GovernorGeneral` and `TimelockController`.
 
 ### 2.4 Courtroom Settlement & Oracle Relayer (`src/settlement/`, `src/oracle/`)
 - **Cold Case Escrow (`courtroomSettlement.js`)**: Automatic 14-day inactivity settlement (**94% refunded** to depositors, **6% platform maintenance fee** retained).
@@ -67,7 +68,7 @@ graph TD
 ### 2.5 Production EVM Smart Contracts (`contracts/`)
 - **`ValidationMarket.sol`**: UUPS / ERC-1967 upgradeable prediction market managing pools, dynamic odds, dynamic EIP-712 domain separator, losing pool slashing waterfall, and settlement.
 - **`CourtroomEscrow.sol`**: UUPS / ERC-1967 upgradeable escrow governing 14-day cold case refunds (94%/6%) and challenge retrial bonds.
-- **`EpistemicGovernor.sol`**: UUPS / ERC-1967 upgradeable quadratic tier-weighted governance contract with Semaphore ZK double-voting prevention and modular DAO framework adapters (OpenZeppelin Governor, Gnosis Safe Zodiac module, Aragon OSx plugin).
+- **`EpistemicGovernor.sol`**: UUPS / ERC-1967 upgradeable quadratic tier-weighted governance contract with Semaphore ZK double-voting prevention and modular DAO framework adapters (OpenZeppelin Governor, Gnosis Safe Zodiac module, Aragon OSx plugin, EnDAOsment GovernorGeneral).
 - **`proxy/`**: Canonical `ERC1967Proxy.sol`, `Initializable.sol`, and `UUPSUpgradeable.sol` providing atomic proxy initialization and upgrade authorization.
 - Compiled with Solc 0.8.20 optimizer (200 runs), artifacts exported to `src/config/contracts.json`.
 
