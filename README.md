@@ -26,7 +26,7 @@ Being removed or moved: the 5% juror fee (panelists are now paid a flat rate by 
 
 ## Documentation
 
-- **Veracities.bet design:** connections, settlement, fees, market mechanics, tickets, and security — [`docs/veracities-bet.md`](./docs/veracities-bet.md)
+- **Veracities.bet design:** connections, settlement, fees, market mechanics, tickets, and security — [`docs/veracities.bet.md`](./docs/veracities.bet.md)
 - **Ecosystem overview and ClearCloud:** in [`mrtingalingling/clearCloud`](https://github.com/mrtingalingling/clearCloud)
 - **Vera:** [`mrtingalingling/vera`](https://github.com/mrtingalingling/vera)
 
