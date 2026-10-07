@@ -22,7 +22,7 @@ Veracities.bet only reads from the other two products, through public interfaces
 
 - **Vera:** calls Vera's public API as an ordinary customer at published per-call prices, to show verdicts and evidence as information. It never uses a verdict as a settlement input.
 - **ClearCloud:** reads public `social.clearcloud.*` records (challenges, rulings) and reputation attestations users publish by opt-in. ClearCloud's Challenge button links into Veracities.bet, and nothing flows back.
-- **Wagers sized by reputation:** stake limits can use a challenger's published reputation band; Veracities.bet never sees exact scores or which personas belong to whom. Wallet sign-in (SIWE) is kept for deposits only and is never linked publicly to a ClearCloud persona; the prototype's NFT token-gating is dropped.
+- **Wagers sized by reputation:** stake limits can use the bettor's own published reputation band, if they choose to publish one; Veracities.bet never sees exact scores or which personas belong to whom. Wallet sign-in (SIWE) is kept for deposits only and is never linked publicly to a ClearCloud persona; the prototype's NFT token-gating is dropped.
 
 ## Settlement and integrity
 
@@ -36,7 +36,7 @@ Every market settles on one signed ruling record, and nobody who can influence t
 
 Veracities.bet keeps a rake of a 6% wager fee plus 5% of each losing pool and pays the other two products at fixed, published prices.
 
-- **To ClearCloud:** data-access fees for public records, and ad spend inside ClearCloud. Both are betting-derived and go to the segregated pool, which can never fund Vera.
+- **To ClearCloud:** data-access fees for public records, ad spend inside ClearCloud, and a percentage of earnings that funds Courtroom panel pay at a flat rate per case. All three are betting-derived and go to the segregated pool, which can never fund Vera.
 - **To Vera:** the normal per-call API price. Anything above Vera's cost of serving Veracities.bet, by the method in C-006, goes to the segregated pool, so Vera's income never rises with betting volume.
 - **Ads in ClearCloud:** only where gambling advertising is legal, only to age-verified users who opted in, labeled as gambling ads, and never on or beside a post under challenge.
 
